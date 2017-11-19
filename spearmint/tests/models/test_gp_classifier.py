@@ -187,37 +187,39 @@ import numpy.random as npr
 
 from spearmint.models import GPClassifier
 
+
 def test_gp_init():
     gp = GPClassifier(5)
+
 
 def test_fit():
     npr.seed(1)
 
-    N             = 10
-    D             = 5
-    burnin        = 100
-    mcmc_iters    = 100
-    num_pending   = 3
+    N = 10
+    D = 5
+    burnin = 100
+    mcmc_iters = 100
+    num_pending = 3
     num_fantasies = 2
 
     gp = GPClassifier(D, burnin=burnin, mcmc_iters=mcmc_iters, num_fantasies=num_fantasies)
-    
-    inputs     = np.vstack((0.1*npr.rand(N,D),npr.rand(N,D)))
+
+    inputs = np.vstack((0.1 * npr.rand(N, D), npr.rand(N, D)))
     inputs[12] = np.ones(D)
-    pending    = npr.rand(3,D)
-    W          = npr.randn(D,1)
-    vals       = (inputs - inputs.mean(0)).dot(W).flatten() > 0
+    pending = npr.rand(3, D)
+    W = npr.randn(D, 1)
+    vals = (inputs - inputs.mean(0)).dot(W).flatten() > 0
 
     gp.fit(inputs, vals, pending)
 
     probs = np.zeros(inputs.shape[0])
-    for i in xrange(gp.num_states):
+    for i in range(gp.num_states):
         gp.set_state(i)
         probs += (gp.latent_values.value > 0) / float(mcmc_iters)
 
     assert np.all(probs[:N] < 0.5) and np.all(probs[N:] > 0.5)
 
-    assert gp.values.shape[0] == 2*N + num_pending
+    assert gp.values.shape[0] == 2 * N + num_pending
 
     assert gp.values.shape[1] == 2
 
@@ -228,39 +230,40 @@ def test_fit():
     assert len(gp._latent_values_list) == mcmc_iters
     assert len(gp._fantasy_values_list) == mcmc_iters
 
+
 def test_predict():
     npr.seed(1)
 
-    N     = 10
+    N = 10
     Npend = 3
     Ntest = 2
-    D     = 5
+    D = 5
 
-    gp   = GPClassifier(D, burnin=5, num_fantasies=7)
-    pred = npr.rand(Ntest,D)
+    gp = GPClassifier(D, burnin=5, num_fantasies=7)
+    pred = npr.rand(Ntest, D)
 
     # Test with 0 points
     mu, v = gp.predict(pred)
     np.testing.assert_allclose(mu, 0, rtol=1e-7, atol=0, err_msg='', verbose=True)
-    np.testing.assert_allclose(v, 1+1e-6, rtol=1e-7, atol=0, err_msg='', verbose=True)
+    np.testing.assert_allclose(v, 1 + 1e-6, rtol=1e-7, atol=0, err_msg='', verbose=True)
 
-    #Test with 1 point
-    X   = np.zeros((1,D))
-    W   = npr.randn(D,1)
+    # Test with 1 point
+    X = np.zeros((1, D))
+    W = npr.randn(D, 1)
     val = X.dot(W).flatten() > 0
 
     gp.fit(X, val, fit_hypers=False)
 
     mu, v = gp.predict(pred)
-    
+
     # Points closer to the origin will have less variance and a larger mean   
-    mu, v = gp.predict(np.tile(np.linspace(0,1,100)[:,None],(1,D)))
+    mu, v = gp.predict(np.tile(np.linspace(0, 1, 100)[:, None], (1, D)))
     assert np.all(np.diff(mu) > 0) and np.all(np.diff(v) > 0)
 
     # Now let's make sure it doesn't break with more data and pending
-    inputs  = 0.5*npr.rand(N,D)
-    vals    = inputs.dot(W).flatten() > 0
-    pending = npr.rand(Npend,D)
+    inputs = 0.5 * npr.rand(N, D)
+    vals = inputs.dot(W).flatten() > 0
+    pending = npr.rand(Npend, D)
 
     gp.fit(inputs, vals, pending)
 
@@ -272,18 +275,18 @@ def test_predict():
     mu, v, dmu, dv = gp.predict(pred, compute_grad=True)
 
     # The implied loss is np.sum(mu**2) + np.sum(v**2)
-    dloss = 2*(dmu*mu[:,np.newaxis,:]).sum(2) + 2*(v[:,np.newaxis,np.newaxis]*dv).sum(2)
+    dloss = 2 * (dmu * mu[:, np.newaxis, :]).sum(2) + 2 * (v[:, np.newaxis, np.newaxis] * dv).sum(2)
 
     dloss_est = np.zeros(dloss.shape)
-    for i in xrange(Ntest):
-        for j in xrange(D):
-            pred[i,j] += eps
+    for i in range(Ntest):
+        for j in range(D):
+            pred[i, j] += eps
             mu, v = gp.predict(pred)
-            loss_1 = np.sum(mu**2) + np.sum(v**2)
-            pred[i,j] -= 2*eps
+            loss_1 = np.sum(mu ** 2) + np.sum(v ** 2)
+            pred[i, j] -= 2 * eps
             mu, v = gp.predict(pred)
-            loss_2 = np.sum(mu**2) + np.sum(v**2)
-            pred[i,j] += eps
-            dloss_est[i,j] = ((loss_1 - loss_2) / (2*eps))
+            loss_2 = np.sum(mu ** 2) + np.sum(v ** 2)
+            pred[i, j] += eps
+            dloss_est[i, j] = ((loss_1 - loss_2) / (2 * eps))
 
     assert np.linalg.norm(dloss - dloss_est) < 1e-5

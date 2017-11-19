@@ -182,32 +182,33 @@
 # to enter into this License and Terms of Use on behalf of itself and
 # its Institution.
 
-import spearmint
 import os
+import re
+import socket
 import subprocess
 import sys
-import socket
-import re
-import shlex
 from abc import ABCMeta, abstractmethod
+
+import spearmint
+
 
 def init(*args, **kwargs):
     return AbstractClusterScheduler(*args, **kwargs)
 
+
 class AbstractClusterScheduler(object):
     __metaclass__ = ABCMeta
-    
+
     def __init__(self, options):
         self.options = options
-    
+
     @abstractmethod
     def submit_command(self, output_file):
         pass
 
-    @abstractmethod    
+    @abstractmethod
     def output_regexp(self):
         pass
-
 
     def submit(self, job_id, experiment_name, experiment_dir, database_address):
         base_path = os.path.dirname(os.path.realpath(spearmint.__file__))
@@ -216,7 +217,7 @@ class AbstractClusterScheduler(object):
             run_command += 'source %s\n' % self.options["environment-file"]
         run_command += 'cd %s\n' % base_path
         run_command += 'python launcher.py --database-address=%s --experiment-name=%s --job-id=%s %s' % \
-               (database_address, experiment_name, job_id, experiment_dir)
+                       (database_address, experiment_name, job_id, experiment_dir)
 
         # Since "localhost" might mean something different on the machine
         # we are submitting to, set it to the actual name of the parent machine
@@ -241,11 +242,11 @@ class AbstractClusterScheduler(object):
             submit_command += ' ' + self.options['scheduler-args']
         # submit_command = shlex.split(submit_command)
 
-        process = subprocess.Popen(submit_command, 
-                                stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, 
-                                shell=True)
+        process = subprocess.Popen(submit_command,
+                                   stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT,
+                                   shell=True)
         output, std_err = process.communicate(input=run_command)
         process.stdin.close()
 
@@ -256,7 +257,6 @@ class AbstractClusterScheduler(object):
         except:
             sys.stderr.write(output)
             return None
-
 
     def alive(self, process_id):
         # This wastes a bit of time, but prevents
@@ -311,4 +311,3 @@ class AbstractClusterScheduler(object):
             pass
 
         return alive
-

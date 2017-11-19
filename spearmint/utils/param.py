@@ -186,23 +186,26 @@ import copy
 
 import numpy as np
 
-import priors
-from compression import compress_array
+from . import priors
+from .compression import compress_array
+
 
 def set_params_from_array(params_iterable, params_array):
     """Update the params in params_iterable with the new values stored in params_array"""
     index = 0
-    for param in params_iterable:   
+    for param in params_iterable:
         if param.size() == 1 and not param.isArray:
-            param.value = params_array[index] # Pull it out of the array, becomes a float
+            param.value = params_array[index]  # Pull it out of the array, becomes a float
         else:
-            param.value = params_array[index:index+param.size()]
+            param.value = params_array[index:index + param.size()]
         index += param.size()
+
 
 def params_to_array(params_iterable):
     """Put the params in params_iterable into a 1D numpy array for sampling"""
     return np.hstack([param.value for param in params_iterable])
     # Not sure if copying is really needed
+
 
 def params_to_dict(params_iterable):
     params_dict = {}
@@ -210,6 +213,7 @@ def params_to_dict(params_iterable):
         params_dict[param.name] = param.value
 
     return params_dict
+
 
 def params_to_compressed_dict(params_iterable):
     params_dict = {}
@@ -224,12 +228,13 @@ def params_to_compressed_dict(params_iterable):
 class Param(object):
     """A class to represent a parameter
     """
+
     def __init__(self, initial_value, prior=priors.NoPrior(), name="Unnamed"):
         self.initial_value = copy.copy(initial_value)
-        self.value         = initial_value
-        self.name          = name
-        self.prior         = prior
-        self.isArray       = hasattr(initial_value, "shape") and initial_value.shape != ()
+        self.value = initial_value
+        self.name = name
+        self.prior = prior
+        self.isArray = hasattr(initial_value, "shape") and initial_value.shape != ()
         # If the initial value is in a numpy array, keep it as a numpy array later on
         # If the initial value is a single number (float), respect that later on
 
@@ -261,17 +266,18 @@ class Param(object):
         if hasattr(self.prior, 'sample'):
             self.value = self.prior.sample(self.size())
         else:
-            raise Exception("Param %s has prior %s, which does not allow sampling" % (self.name, self.prior.__class__.__name__))
-        
+            raise Exception(
+                "Param %s has prior %s, which does not allow sampling" % (self.name, self.prior.__class__.__name__))
+
         # self.value = np.squeeze(self.value) # sampler often creates extra dimension
 
         try:  # If it is a numpy array of size 1, cast it to a float (this might not be needed)
             self.value = float(self.value)
         except:
-            pass 
+            pass
 
     def print_diagnostics(self):
         if self.size() == 1:
-            print '    %s: %s' % (self.name, self.value)
+            print('    %s: %s' % (self.name, self.value))
         else:
-            print '    %s: min=%s, max=%s (size=%d)' % (self.name, self.value.min(), self.value.max(), self.size())
+            print('    %s: min=%s, max=%s (size=%d)' % (self.name, self.value.min(), self.value.max(), self.size()))

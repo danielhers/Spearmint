@@ -183,41 +183,33 @@
 # its Institution.
 
 
-import os
-import tempfile
-import copy
 import numpy          as np
-import numpy.random   as npr
-import scipy.linalg   as spla
 import scipy.stats    as sps
-import scipy.optimize as spo
-import cPickle
-import multiprocessing
-import ast
+
 
 def compute_ei(model, pred, ei_target=None, compute_grad=True):
     # TODO: use ei_target
     if pred.ndim == 1:
-        pred = pred[None,:]
+        pred = pred[None, :]
 
     if not compute_grad:
         func_m, func_v = model.predict(pred)
     else:
         (func_m,
-        func_v,
-        grad_xp_m,
-        grad_xp_v) = model.predict(pred, compute_grad=True)
+         func_v,
+         grad_xp_m,
+         grad_xp_v) = model.predict(pred, compute_grad=True)
 
     if func_m.ndim == 1:
-        func_m = func_m[:,np.newaxis]
+        func_m = func_m[:, np.newaxis]
     if func_v.ndim == 1:
-        func_v = func_v[:,np.newaxis]
+        func_v = func_v[:, np.newaxis]
 
     if compute_grad:
         if grad_xp_m.ndim == 2:
-            grad_xp_m = grad_xp_m[:,:,np.newaxis]
+            grad_xp_m = grad_xp_m[:, :, np.newaxis]
         if grad_xp_v.ndim == 2:
-            grad_xp_v = grad_xp_v[:,:,np.newaxis]
+            grad_xp_v = grad_xp_v[:, :, np.newaxis]
 
     ei_values = model.values.min(axis=0)
 
@@ -227,10 +219,10 @@ def compute_ei(model, pred, ei_target=None, compute_grad=True):
 
     # Expected improvement
     func_s = np.sqrt(func_v)
-    u      = (ei_values - func_m) / func_s
-    ncdf   = sps.norm.cdf(u)
-    npdf   = sps.norm.pdf(u)
-    ei     = np.mean(func_s*( u*ncdf + npdf),axis=1)
+    u = (ei_values - func_m) / func_s
+    ncdf = sps.norm.cdf(u)
+    npdf = sps.norm.pdf(u)
+    ei = np.mean(func_s * (u * ncdf + npdf), axis=1)
 
     if not compute_grad:
         return ei
@@ -239,10 +231,10 @@ def compute_ei(model, pred, ei_target=None, compute_grad=True):
 
     # Gradients of ei w.r.t. mean and variance            
     g_ei_m = -ncdf
-    g_ei_s2 = 0.5*npdf / func_s
-    
+    g_ei_s2 = 0.5 * npdf / func_s
+
     # Gradient of ei w.r.t. the inputs
-    grad_xp = (grad_xp_m*np.tile(g_ei_m,(pred.shape[1],1))).T + (grad_xp_v.T*g_ei_s2).T
-    grad_xp = np.mean(grad_xp,axis=0)
+    grad_xp = (grad_xp_m * np.tile(g_ei_m, (pred.shape[1], 1))).T + (grad_xp_v.T * g_ei_s2).T
+    grad_xp = np.mean(grad_xp, axis=0)
 
     return ei, grad_xp.flatten()

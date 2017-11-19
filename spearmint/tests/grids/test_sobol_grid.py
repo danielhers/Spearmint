@@ -185,12 +185,11 @@
 
 import numpy as np
 
-from collections          import OrderedDict
-from spearmint.grids      import sobol_grid
+from spearmint.grids import sobol_grid
+
 
 def test_generate():
     grid = sobol_grid.generate(10, grid_size=100, grid_seed=1)
 
-    assert grid.shape == (100,10)
+    assert grid.shape == (100, 10)
     assert np.all(grid[0] == 0.5)
-

@@ -183,32 +183,28 @@
 # its Institution.
 
 
-import copy
-import sys, logging
+import logging
+import sys
+
 import numpy             as np
-import numpy.random      as npr
-import scipy.linalg      as spla
-import scipy.optimize    as spo
-import scipy.io          as sio
 import scipy.stats       as sps
-import scipy.weave
 
-
-from .gp                                     import GP
-from ..utils.param                           import Param as Hyperparameter
-from ..kernels                               import Matern52, Noise, Scale, SumKernel, TransformKernel
-from ..sampling.slice_sampler                import SliceSampler
+from .gp import GP
+from ..kernels import Matern52, Noise, Scale, SumKernel, TransformKernel
+from ..sampling.elliptical_slice_sampler import EllipticalSliceSampler
+from ..sampling.slice_sampler import SliceSampler
 from ..sampling.whitened_prior_slice_sampler import WhitenedPriorSliceSampler
-from ..sampling.elliptical_slice_sampler     import EllipticalSliceSampler
-from ..utils                                 import priors
-from ..transformations                       import BetaWarp, Transformer
+from ..transformations import BetaWarp, Transformer
+from ..utils import priors
+from ..utils.param import Param as Hyperparameter
 
 try:
     module = sys.modules['__main__'].__file__
-    log    = logging.getLogger(module)
+    log = logging.getLogger(module)
 except:
     log = logging.getLogger()
-    print 'Not running from main.'
+    print('Not running from main.')
+
 
 class GPClassifier(GP):
     def __init__(self, num_dims, **options):
@@ -218,29 +214,29 @@ class GPClassifier(GP):
         self.ess_thinning = int(options.get("ess-thinning", 10))
 
         self._set_likelihood(options)
-    
+
         self.prior_whitening = options.get('prior-whitening', True)
 
         sigmoid = options.get("sigmoid", "probit")
         if not self.noiseless:
             if sigmoid == "probit":
-                self.sigmoid            = sps.norm.cdf
-                self.sigmoid_derivative = sps.norm.pdf   # not used
-                self.sigmoid_inverse    = sps.norm.ppf
+                self.sigmoid = sps.norm.cdf
+                self.sigmoid_derivative = sps.norm.pdf  # not used
+                self.sigmoid_inverse = sps.norm.ppf
             elif sigmoid == "logistic":
-                self.sigmoid            = sps.logistic.cdf
+                self.sigmoid = sps.logistic.cdf
                 self.sigmoid_derivative = sps.logistic.pdf
-                self.sigmoid_inverse    = sps.logistic.ppf
+                self.sigmoid_inverse = sps.logistic.ppf
             else:
                 raise Exception("Only probit and logistic sigmoids are supported")
         else:
             # If no noise we use the step function and ignore the "sigmoid" argument.
             # (This is the step function likelihood)
             # assert options['likelihood'] == 'STEP'
-            self.sigmoid            = lambda x: np.greater_equal(x, 0)
+            self.sigmoid = lambda x: np.greater_equal(x, 0)
             self.sigmoid_derivative = lambda x: 0.
-            self.sigmoid_inverse    = lambda x: 0.
-        
+            self.sigmoid_inverse = lambda x: 0.
+
         # The constraint is that p=s(f) > 1-epsilon
         # where s if the sigmoid and f is the latent function value, and p is the binomial probability
         # This is only in more complicated situations. The main situation where this is used
@@ -283,9 +279,9 @@ class GPClassifier(GP):
         default_latent_values = self.counts - 0.5
 
         latent_values = np.zeros(self._inputs.shape[0])
-        for i in xrange(self._inputs.shape[0]):
+        for i in range(self._inputs.shape[0]):
             key = str(hash(self._inputs[i].tostring()))
-            
+
             if key in latent_values_dict:
                 latent_values[i] = latent_values_dict[key]
             else:
@@ -296,7 +292,7 @@ class GPClassifier(GP):
     def _burn_samples(self, num_samples):
         # sys.stderr.write('GPClassifer: burning %s: ' % ', '.join(self.params.keys()))
         # sys.stderr.write('%04d/%04d' % (0, num_samples))
-        for i in xrange(num_samples):
+        for i in range(num_samples):
             # sys.stderr.write('\b'*9+'%04d/%04d' % (i, num_samples))
             for sampler in self._samplers:
                 sampler.sample(self)
@@ -304,15 +300,14 @@ class GPClassifier(GP):
             self.latent_values_sampler.sample(self)
 
             self.chain_length += 1
-        # sys.stderr.write('\n')
-
+            # sys.stderr.write('\n')
 
     def _collect_samples(self, num_samples):
         # sys.stderr.write('GPClassifer: sampling %s: ' % ', '.join(self.params.keys()))
         # sys.stderr.write('%04d/%04d' % (0, num_samples))
-        hypers_list        = []
+        hypers_list = []
         latent_values_list = []
-        for i in xrange(num_samples):
+        for i in range(num_samples):
             # sys.stderr.write('\b'*9+'%04d/%04d' % (i, num_samples))
             for sampler in self._samplers:
                 sampler.sample(self)
@@ -329,21 +324,21 @@ class GPClassifier(GP):
         return hypers_list, latent_values_list
 
     def _build(self):
-        self.params        = {}
+        self.params = {}
         self.latent_values = None
 
         # Build the transformer
-        beta_warp                 = BetaWarp(self.num_dims)
-        beta_alpha, beta_beta    = beta_warp.hypers
+        beta_warp = BetaWarp(self.num_dims)
+        beta_alpha, beta_beta = beta_warp.hypers
         self.params['beta_alpha'] = beta_alpha
-        self.params['beta_beta']  = beta_beta
+        self.params['beta_beta'] = beta_beta
 
         transformer = Transformer(self.num_dims)
         transformer.add_layer(beta_warp)
 
         # Build the component kernels
-        input_kernel      = Matern52(self.num_dims)
-        ls                = input_kernel.hypers
+        input_kernel = Matern52(self.num_dims)
+        ls = input_kernel.hypers
         self.params['ls'] = ls
 
         # Now apply the transformation.
@@ -357,29 +352,30 @@ class GPClassifier(GP):
         if self.noiseless:
             self._kernel = SumKernel(transform_kernel, stability_noise)
         else:
-            scaled_kernel       = Scale(transform_kernel)
-            self._kernel        = SumKernel(scaled_kernel, stability_noise)
-            amp2                = scaled_kernel.hypers
+            scaled_kernel = Scale(transform_kernel)
+            self._kernel = SumKernel(scaled_kernel, stability_noise)
+            amp2 = scaled_kernel.hypers
             self.params['amp2'] = amp2
 
         # Build the mean function (just a constant mean for now)
         self.mean = Hyperparameter(
-            initial_value = 0.0,
-            prior         = priors.Gaussian(0.0,1.0),
-            name          = 'mean'
+            initial_value=0.0,
+            prior=priors.Gaussian(0.0, 1.0),
+            name='mean'
         )
         self.params['mean'] = self.mean
 
         # Buld the latent values. Empty for now until the GP gets data.
         self.latent_values = Hyperparameter(
-            initial_value  = np.array([]),
-            name           = 'latent values'
+            initial_value=np.array([]),
+            name='latent values'
         )
 
         # Build the samplers
         to_sample = [self.mean] if self.noiseless else [self.mean, amp2]
         self._samplers.append(SliceSampler(*to_sample, compwise=False, thinning=self.thinning))
-        self._samplers.append(WhitenedPriorSliceSampler(ls, beta_alpha, beta_beta, compwise=True, thinning=self.thinning))
+        self._samplers.append(
+            WhitenedPriorSliceSampler(ls, beta_alpha, beta_beta, compwise=True, thinning=self.thinning))
         self.latent_values_sampler = EllipticalSliceSampler(self.latent_values, thinning=self.ess_thinning)
 
     @property
@@ -390,7 +386,8 @@ class GPClassifier(GP):
         if self.num_fantasies == 1:
             return np.append(self.latent_values.value, self._fantasy_values_list[self.state].flatten(), axis=0)
         else:
-            return np.append(np.tile(self.latent_values.value[:,None], (1,self.num_fantasies)), self._fantasy_values_list[self.state], axis=0)
+            return np.append(np.tile(self.latent_values.value[:, None], (1, self.num_fantasies)),
+                             self._fantasy_values_list[self.state], axis=0)
 
     @property
     def observed_values(self):
@@ -405,13 +402,13 @@ class GPClassifier(GP):
         self._set_latent_values_from_dict(self._latent_values_list[state])
 
     def pi(self, pred, compute_grad=False):
-        return super(GPClassifier, self).pi( pred, compute_grad=compute_grad, 
-            C=self.sigmoid_inverse(self._one_minus_epsilon) )
+        return super(GPClassifier, self).pi(pred, compute_grad=compute_grad,
+                                            C=self.sigmoid_inverse(self._one_minus_epsilon))
 
     def fit(self, inputs, counts, pending=None, hypers=None, reburn=False, fit_hypers=True):
         # Set the data for the GP
         self._inputs = inputs
-        self.counts  = counts
+        self.counts = counts
 
         # Reset the GP
         self._reset()
@@ -432,14 +429,14 @@ class GPClassifier(GP):
             self.num_states = self.mcmc_iters
         elif not self._hypers_list:
             # Just use the current hypers as the only state
-            current_dict             = self.to_dict()
-            self._hypers_list        = [current_dict['hypers']]
+            current_dict = self.to_dict()
+            self._hypers_list = [current_dict['hypers']]
             self._latent_values_list = [current_dict['latent values']]
-            self.num_states          = 1
+            self.num_states = 1
 
         # Set pending data and generate corresponding fantasies
         if pending is not None:
-            self.pending              = pending
+            self.pending = pending
             self._fantasy_values_list = self._collect_fantasies(pending)
 
         # Get caching ready
@@ -447,7 +444,7 @@ class GPClassifier(GP):
             self._prepare_cache()
 
         # Set the hypers to the final state of the chain
-        self.set_state(len(self._hypers_list)-1)
+        self.set_state(len(self._hypers_list) - 1)
 
         return self.to_dict()
 
@@ -460,30 +457,30 @@ class GPClassifier(GP):
             y = self.latent_values.value
 
         p = self.sigmoid(y)
-        
+
         # Note on the below: the obvious implementation would be 
         #    return np.sum( pos*np.log(p) + neg*np.log(1-p) )
         # The problem is, if pos = 0, and p=0, we will get a 0*-Inf = nan
         # This messes things up. So we use the safer implementation below that ignores
         # the term entirely if the counts are 0.
-        pos = self.counts # positive counts
+        pos = self.counts  # positive counts
         neg = 1 - pos
 
         with np.errstate(divide='ignore'):  # suppress warnings about log(0)
-            return np.sum( pos[pos>0]*np.log(p[pos>0]) ) + np.sum( neg[neg>0]*np.log(1-p[neg>0]) )
+            return np.sum(pos[pos > 0] * np.log(p[pos > 0])) + np.sum(neg[neg > 0] * np.log(1 - p[neg > 0]))
 
     def to_dict(self):
         gp_dict = {}
 
         gp_dict['hypers'] = {}
-        for name, hyper in self.params.iteritems():
+        for name, hyper in self.params.items():
             gp_dict['hypers'][name] = hyper.value
 
         # Save the latent values as a dict with keys as hashes of the data
         # so that each latent value is associated with its input
         # then when we load them in we know which ones are which
-        gp_dict['latent values'] = {str(hash(self._inputs[i].tostring())) : self.latent_values.value[i] 
-                for i in xrange(self._inputs.shape[0])}
+        gp_dict['latent values'] = {str(hash(self._inputs[i].tostring())): self.latent_values.value[i]
+                                    for i in range(self._inputs.shape[0])}
 
         gp_dict['chain length'] = self.chain_length
 
@@ -493,6 +490,3 @@ class GPClassifier(GP):
         self._set_params_from_dict(gp_dict['hypers'])
         self._set_latent_values_from_dict(gp_dict['latent values'])
         self.chain_length = gp_dict['chain length']
-
-
-

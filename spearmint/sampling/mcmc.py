@@ -186,8 +186,9 @@
 import numpy        as np
 import numpy.random as npr
 
+
 def elliptical_slice(xx, chol_Sigma, log_like_fn, *log_like_fn_args):
-    D  = xx.size
+    D = xx.size
 
     # Select a random ellipse.
     nu = np.dot(chol_Sigma, npr.randn(D))
@@ -196,15 +197,15 @@ def elliptical_slice(xx, chol_Sigma, log_like_fn, *log_like_fn_args):
     hh = np.log(npr.rand()) + log_like_fn(xx, *log_like_fn_args)
 
     # Randomly center the bracket.
-    phi     = npr.rand()*2*np.pi
+    phi = npr.rand() * 2 * np.pi
     phi_max = phi
-    phi_min = phi_max - 2*np.pi
+    phi_min = phi_max - 2 * np.pi
 
     # Loop until acceptance.
     while True:
 
         # Compute the proposal.
-        xx_prop = xx*np.cos(phi) + nu*np.sin(phi)
+        xx_prop = xx * np.cos(phi) + nu * np.sin(phi)
 
         # If on the slice, return the proposal.
         if log_like_fn(xx_prop, *log_like_fn_args) > hh:
@@ -217,12 +218,13 @@ def elliptical_slice(xx, chol_Sigma, log_like_fn, *log_like_fn_args):
         else:
             raise Exception("Shrank to zero!")
 
-        phi = npr.rand()*(phi_max - phi_min) + phi_min
+        phi = npr.rand() * (phi_max - phi_min) + phi_min
+
 
 def uni_slice_sample(init_x, logprob, lower, upper, *logprob_args):
     llh_s = np.log(npr.rand()) + logprob(init_x, *logprob_args)
     while True:
-        new_x = npr.rand()*(upper-lower) + lower
+        new_x = npr.rand() * (upper - lower) + lower
         new_llh = logprob(new_x, *logprob_args)
         if new_llh > llh_s:
             return new_x
@@ -232,6 +234,7 @@ def uni_slice_sample(init_x, logprob, lower, upper, *logprob_args):
             upper = new_x
         else:
             raise Exception("Slice sampler shrank to zero!")
+
 
 def slice_sample(init_x, logprob, *logprob_args, **slice_sample_args):
     """generate a new sample from a probability density using slice sampling
@@ -260,20 +263,20 @@ def slice_sample(init_x, logprob, *logprob_args, **slice_sample_args):
     http://en.wikipedia.org/wiki/Slice_sampling
 
     """
-    sigma         = slice_sample_args.get('sigma', 1.0)
-    step_out      = slice_sample_args.get('step_out', True)
+    sigma = slice_sample_args.get('sigma', 1.0)
+    step_out = slice_sample_args.get('step_out', True)
     max_steps_out = slice_sample_args.get('max_steps_out', 1000)
-    compwise      = slice_sample_args.get('compwise', True)
+    compwise = slice_sample_args.get('compwise', True)
     doubling_step = slice_sample_args.get('doubling_step', True)
-    verbose       = slice_sample_args.get('verbose', False)
+    verbose = slice_sample_args.get('verbose', False)
 
     def direction_slice(direction, init_x):
         def dir_logprob(z):
-            return logprob(direction*z + init_x, *logprob_args)
+            return logprob(direction * z + init_x, *logprob_args)
 
         def acceptable(z, llh_s, L, U):
-            while (U-L) > 1.1*sigma:
-                middle = 0.5*(L+U)
+            while (U - L) > 1.1 * sigma:
+                middle = 0.5 * (L + U)
                 splits = (middle > 0 and z >= middle) or (middle <= 0 and z < middle)
                 if z < middle:
                     U = middle
@@ -283,8 +286,8 @@ def slice_sample(init_x, logprob, *logprob_args, **slice_sample_args):
                 if splits and llh_s >= dir_logprob(U) and llh_s >= dir_logprob(L):
                     return False
             return True
-    
-        upper = sigma*npr.rand()
+
+        upper = sigma * npr.rand()
         lower = upper - sigma
         llh_s = np.log(npr.rand()) + dir_logprob(0.0)
 
@@ -292,20 +295,21 @@ def slice_sample(init_x, logprob, *logprob_args, **slice_sample_args):
         u_steps_out = 0
         if step_out:
             if doubling_step:
-                while (dir_logprob(lower) > llh_s or dir_logprob(upper) > llh_s) and (l_steps_out + u_steps_out) < max_steps_out:
+                while (dir_logprob(lower) > llh_s or dir_logprob(upper) > llh_s) and (
+                    l_steps_out + u_steps_out) < max_steps_out:
                     if npr.rand() < 0.5:
                         l_steps_out += 1
-                        lower       -= (upper-lower)                        
+                        lower -= (upper - lower)
                     else:
                         u_steps_out += 1
-                        upper       += (upper-lower)
+                        upper += (upper - lower)
             else:
                 while dir_logprob(lower) > llh_s and l_steps_out < max_steps_out:
                     l_steps_out += 1
-                    lower       -= sigma                
+                    lower -= sigma
                 while dir_logprob(upper) > llh_s and u_steps_out < max_steps_out:
                     u_steps_out += 1
-                    upper       += sigma
+                    upper += sigma
 
         start_upper = upper
         start_lower = lower
@@ -313,10 +317,10 @@ def slice_sample(init_x, logprob, *logprob_args, **slice_sample_args):
         steps_in = 0
         while True:
             steps_in += 1
-            new_z     = (upper - lower)*npr.rand() + lower
-            new_llh   = dir_logprob(new_z)
+            new_z = (upper - lower) * npr.rand() + lower
+            new_llh = dir_logprob(new_z)
             if np.isnan(new_llh):
-                print new_z, direction*new_z + init_x, new_llh, llh_s, init_x, logprob(init_x, *logprob_args)
+                print(new_z, direction * new_z + init_x, new_llh, llh_s, init_x, logprob(init_x, *logprob_args))
                 raise Exception("Slice sampler got a NaN")
             if new_llh > llh_s and acceptable(new_z, llh_s, start_lower, start_upper):
                 break
@@ -328,9 +332,9 @@ def slice_sample(init_x, logprob, *logprob_args, **slice_sample_args):
                 raise Exception("Slice sampler shrank to zero!")
 
         if verbose:
-            print "Steps Out:", l_steps_out, u_steps_out, " Steps In:", steps_in
+            print("Steps Out:", l_steps_out, u_steps_out, " Steps In:", steps_in)
 
-        return new_z*direction + init_x, new_llh
+        return new_z * direction + init_x, new_llh
 
     if type(init_x) == float or isinstance(init_x, np.number):
         init_x = np.array([init_x])
@@ -344,74 +348,72 @@ def slice_sample(init_x, logprob, *logprob_args, **slice_sample_args):
         npr.shuffle(ordering)
         new_x = init_x.copy()
         for d in ordering:
-            direction    = np.zeros((dims))
+            direction = np.zeros((dims))
             direction[d] = 1.0
             new_x, new_llh = direction_slice(direction, new_x)
 
     else:
         direction = npr.randn(dims)
-        direction = direction / np.sqrt(np.sum(direction**2))
+        direction = direction / np.sqrt(np.sum(direction ** 2))
         new_x, new_llh = direction_slice(direction, init_x)
 
     if scalar:
         return float(new_x[0]), new_llh
     else:
         return new_x, new_llh
-          
+
 
 def slice_sample_simple(init_x, logprob, *logprob_args, **slice_sample_args):
-    sigma         = slice_sample_args.get('sigma', 1.0)
-    step_out      = slice_sample_args.get('step_out', True)
+    sigma = slice_sample_args.get('sigma', 1.0)
+    step_out = slice_sample_args.get('step_out', True)
     max_steps_out = slice_sample_args.get('max_steps_out', 1000)
-    compwise      = slice_sample_args.get('compwise', True)
-    verbose       = slice_sample_args.get('verbose', False)
+    compwise = slice_sample_args.get('compwise', True)
+    verbose = slice_sample_args.get('verbose', False)
 
     # Keep track of the number of evaluations of the logprob function
     # funEvals = {'funevals': 0} # sorry, i don't know how to actually do this properly with all these nested function. pls forgive me -MG -- from collections imoprt Counter ?
-    
+
     # this is a 1-d sampling subrountine that only samples along the direction "direction"
     def direction_slice(direction, init_x):
-        
-        def dir_logprob(z): # logprob of the proposed point (x + dir*z) where z must be the step size
+
+        def dir_logprob(z):  # logprob of the proposed point (x + dir*z) where z must be the step size
             # funEvals['funevals'] += 1
             try:
-                return logprob(direction*z + init_x, *logprob_args)
+                return logprob(direction * z + init_x, *logprob_args)
             except:
-                print 'ERROR: Logprob failed at input %s' % str(direction*z + init_x)
+                print('ERROR: Logprob failed at input %s' % str(direction * z + init_x))
                 raise
-                
-    
+
         # upper and lower are step sizes -- everything is measured relative to init_x
-        upper = sigma*npr.rand()  # random thing above 0
-        lower = upper - sigma     # random thing below 0
+        upper = sigma * npr.rand()  # random thing above 0
+        lower = upper - sigma  # random thing below 0
         llh_s = np.log(npr.rand()) + dir_logprob(0.0)  # = log(prob_current * rand) 
         # (above) uniformly sample vertically at init_x
-    
-    
+
+
         l_steps_out = 0
         u_steps_out = 0
         if step_out:
             # increase upper and decrease lower until they overshoot the curve
             while dir_logprob(lower) > llh_s and l_steps_out < max_steps_out:
                 l_steps_out += 1
-                lower       -= sigma  # make lower smaller by sigma
+                lower -= sigma  # make lower smaller by sigma
             while dir_logprob(upper) > llh_s and u_steps_out < max_steps_out:
                 u_steps_out += 1
-                upper       += sigma
-        
-        
+                upper += sigma
+
         # rejection sample along the horizontal line (because we don't know the bounds exactly)
         steps_in = 0
         while True:
             steps_in += 1
-            new_z     = (upper - lower)*npr.rand() + lower  # uniformly sample between upper and lower
-            new_llh   = dir_logprob(new_z)  # new current logprob
+            new_z = (upper - lower) * npr.rand() + lower  # uniformly sample between upper and lower
+            new_llh = dir_logprob(new_z)  # new current logprob
             if np.isnan(new_llh):
-                print new_z, direction*new_z + init_x, new_llh, llh_s, init_x, logprob(init_x)
+                print(new_z, direction * new_z + init_x, new_llh, llh_s, init_x, logprob(init_x))
                 raise Exception("Slice sampler got a NaN logprob")
             if new_llh > llh_s:  # this is the termination condition
-                break       # it says, if you got to a better place than you started, you're done
-                
+                break  # it says, if you got to a better place than you started, you're done
+
             # the below is only if you've overshot, meaning your uniform sample from the horizontal
             # slice ended up outside the curve because the bounds lower and upper were not tight
             elif new_z < 0:  # new_z is to the left of init_x
@@ -422,14 +424,13 @@ def slice_sample_simple(init_x, logprob, *logprob_args, **slice_sample_args):
                 raise Exception("Slice sampler shrank to zero!")
 
         if verbose:
-            print "Steps Out:", l_steps_out, u_steps_out, " Steps In:", steps_in, "Final logprob:", new_llh
+            print("Steps Out:", l_steps_out, u_steps_out, " Steps In:", steps_in, "Final logprob:", new_llh)
 
         # return new the point
-        return new_z*direction + init_x, new_llh
+        return new_z * direction + init_x, new_llh
 
-    
     # begin main
-    
+
     # # This causes an extra "logprob" function call -- might want to turn off for speed
     initial_llh = logprob(init_x, *logprob_args)
     if verbose:
@@ -437,45 +438,43 @@ def slice_sample_simple(init_x, logprob, *logprob_args, **slice_sample_args):
     if np.isneginf(initial_llh):
         sys.stderr.write('Values passed into slice sampler: %s\n' % init_x)
         raise Exception("Initial value passed into slice sampler has logprob = -inf")
-    
+
     if not init_x.shape:  # if there is just one dimension, stick it in a numpy array
         init_x = np.array([init_x])
 
     dims = init_x.shape[0]
-    if compwise:   # if component-wise (independent) sampling
+    if compwise:  # if component-wise (independent) sampling
         ordering = range(dims)
         npr.shuffle(ordering)
         cur_x = init_x.copy()
         for d in ordering:
-            direction    = np.zeros((dims))
+            direction = np.zeros((dims))
             direction[d] = 1.0
             cur_x, cur_llh = direction_slice(direction, cur_x)
-            
-    else:   # if not component-wise sampling
+
+    else:  # if not component-wise sampling
         direction = npr.randn(dims)
-        direction = direction / np.sqrt(np.sum(direction**2))  # pick a unit vector in a random direction
+        direction = direction / np.sqrt(np.sum(direction ** 2))  # pick a unit vector in a random direction
         cur_x, cur_llh = direction_slice(direction, init_x)  # attempt to sample in that direction
-    
+
     return cur_x, cur_llh
     # return (cur_x, funEvals['funevals']) if returnFunEvals else cur_x
-
 
 
 if __name__ == '__main__':
     npr.seed(1)
 
-    import pylab as pl
     import pymc
 
-    D  = 10
-    fn = lambda x: -0.5*np.sum(x**2)
+    D = 10
+    fn = lambda x: -0.5 * np.sum(x ** 2)
 
     iters = 1000
-    samps = np.zeros((iters,D))
-    for ii in xrange(1,iters):
-        samps[ii,:] = slice_sample(samps[ii-1,:], fn, sigma=0.1, step_out=False, doubling_step=True, verbose=False)
+    samps = np.zeros((iters, D))
+    for ii in range(1, iters):
+        samps[ii, :] = slice_sample(samps[ii - 1, :], fn, sigma=0.1, step_out=False, doubling_step=True, verbose=False)
 
-    ll = -0.5*np.sum(samps**2, axis=1)
+    ll = -0.5 * np.sum(samps ** 2, axis=1)
 
     scores = pymc.geweke(ll)
     pymc.Matplot.geweke_plot(scores, 'test')
@@ -483,4 +482,3 @@ if __name__ == '__main__':
     pymc.raftery_lewis(ll, q=0.025, r=0.01)
 
     pymc.Matplot.autocorrelation(ll, 'test')
-

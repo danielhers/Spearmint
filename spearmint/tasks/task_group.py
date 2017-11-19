@@ -184,9 +184,8 @@
 
 
 import copy
-import numpy as np
 
-from collections import OrderedDict
+import numpy as np
 
 from .task import Task
 
@@ -200,21 +199,21 @@ class TaskGroup(object):
     For now the only view type is that the tasks will by default not return data
     when the associated values are nan.
     """
-    
+
     def __init__(self, tasks_config, variables_config):
         self.tasks = {}
-        for task_name, task_options in tasks_config.iteritems():
+        for task_name, task_options in tasks_config.items():
             self.tasks[task_name] = Task(task_name,
                                          task_options,
                                          variables_config)
 
         self.dummy_task = Task('dummy', {'type': 'dummy'}, variables_config)
 
-        #TODO: Validate the data
-        self._inputs  = np.zeros((0,self.num_dims))#np.array([])
-        self._pending = np.zeros((0,self.num_dims))#np.array([])
-        self._values  = np.zeros((0,self.num_dims))#np.array([])
-        self._costs   = np.zeros((0,self.num_dims))#np.array([])
+        # TODO: Validate the data
+        self._inputs = np.zeros((0, self.num_dims))  # np.array([])
+        self._pending = np.zeros((0, self.num_dims))  # np.array([])
+        self._values = np.zeros((0, self.num_dims))  # np.array([])
+        self._costs = np.zeros((0, self.num_dims))  # np.array([])
 
         self.variables_config = copy.copy(variables_config)
 
@@ -245,20 +244,20 @@ class TaskGroup(object):
     @property
     def values(self):
         """return a dictionary of the task values keyed by task name"""
-        return {task_name : task.values for task_name, task in self.tasks.iteritems()}
+        return {task_name: task.values for task_name, task in self.tasks.items()}
 
     @values.setter
     def values(self, values):
         self._values = values
         for task_name in self.tasks:
-            task        = self.tasks[task_name]
+            task = self.tasks[task_name]
             task.values = values[task_name]
 
     def add_nan_task_if_nans(self):
         valids = np.vstack([vals for vals in self.values.values()]).sum(0)
 
         if np.any(np.isnan(valids)):
-                
+
             # First, see if all the tasks currently in this group are noiseless
             # If so, we should make the NaN task noiseless also
             # This is important because if a NaN constraint unnecessarily
@@ -271,10 +270,10 @@ class TaskGroup(object):
                     break
             nan_likelihood = 'STEP' if all_noiseless else 'BINOMIAL'
 
-            nan_task         = Task('NaN', {'type' : 'CONSTRAINT', 'likelihood' : nan_likelihood}, self.variables_config)
-            nan_task.inputs  = self._inputs
+            nan_task = Task('NaN', {'type': 'CONSTRAINT', 'likelihood': nan_likelihood}, self.variables_config)
+            nan_task.inputs = self._inputs
             nan_task.pending = self._pending
-            nan_task.values  = np.logical_not(np.isnan(valids))
+            nan_task.values = np.logical_not(np.isnan(valids))
 
             self.tasks['NaN'] = nan_task
 
@@ -292,6 +291,5 @@ class TaskGroup(object):
         return self.dummy_task.vectorify(params)
 
     def from_unit(self, U):
-        """remove the scaling for the parameters that keeps them in [0,1)""" 
+        """remove the scaling for the parameters that keeps them in [0,1)"""
         return self.dummy_task.from_unit(U)
-

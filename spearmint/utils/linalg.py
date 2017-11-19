@@ -184,8 +184,8 @@
 
 
 import numpy as np
-import scipy.weave
 import scipy.linalg as spla
+
 
 # Update Cholesky decomposition to include a single extra
 # row/column in the input matrix which is significantly faster than
@@ -195,7 +195,7 @@ import scipy.linalg as spla
 # decomposed.
 # Jasper Snoek
 # Assumes L = chol(A[:-1,:-1])
-def fast_chol_add(L, A): 
+def fast_chol_add(L, A):
     U = L.T
 
     # Add a row and column to U
@@ -205,69 +205,38 @@ def fast_chol_add(L, A):
         G = np.zeros(A.shape)
         G[:U.shape[0], :U.shape[1]] = U
         U = G
-    
-    (rows,cols) = A.shape
+
+    (rows, cols) = A.shape
 
     isPosDef = 1;
-    j = rows-1    
-    try:
-        code = \
-        """
-        double s = 0;
-        for (int i=0; i<cols; i++) {
-            s = A(i,j);
-            for (int ind=0; ind<i; ind++)
-                s -= U(ind,i) * U(ind,j);
-
-            if (i == j) {
-                if (s <= 0) {
-                    isPosDef = 0;
-                    U(i,i) = 0;
-                }
-                else {
-                    U(i,i) = sqrt(s);
-                }
-            } else {
-                if (U(i,i) > 0) {
-                    U(i,j) = s / U(i,i);
-                }
-                else {
-                    U(i,j) = 0;
-                }
-            }
-        }
-        """
-        scipy.weave.inline(code, ['U','A','j','isPosDef','rows','cols'], \
-                               type_converters=scipy.weave.converters.blitz, \
-                               compiler='gcc')
-    except:
-        k = np.arange(cols)
-        for i in xrange(cols):
-            j = rows-1;
-            s = A[i,j] - np.dot(U[k[:i],i].T,U[k[:i],j])
-            if i == j:
-                if s <= 0:
-                    isPosDef = 0
-                    U[i,i] = 0
-                else:
-                    U[i,i] = np.sqrt(s)
+    j = rows - 1
+    k = np.arange(cols)
+    for i in range(cols):
+        j = rows - 1;
+        s = A[i, j] - np.dot(U[k[:i], i].T, U[k[:i], j])
+        if i == j:
+            if s <= 0:
+                isPosDef = 0
+                U[i, i] = 0
             else:
-                if U[i,i] > 0:
-                    U[i,j] = s / U[i,i]
-                else:
-                    U[i,j] = 0
-
+                U[i, i] = np.sqrt(s)
+        else:
+            if U[i, i] > 0:
+                U[i, j] = s / U[i, i]
+            else:
+                U[i, j] = 0
     L = U.T
     return L, isPosDef
+
 
 # If L = cholesky(A[:N,:N]) then this will compute L2 = cholesky(A)
 # with O(M*N^2) work where M = A.shape[0] - N
 def chol_add(L, A):
     N = L.shape[0]
-    S12 = spla.solve_triangular(L, A[:N,N:], lower=True)
-    S22 = spla.cholesky(A[N:,N:] - S12.T.dot(S12)).T
+    S12 = spla.solve_triangular(L, A[:N, N:], lower=True)
+    S22 = spla.cholesky(A[N:, N:] - S12.T.dot(S12)).T
     L_update = np.zeros(A.shape)
-    L_update[:N,:N] = L
-    L_update[N:,:N] = S12.T
-    L_update[N:,N:] = S22
+    L_update[:N, :N] = L
+    L_update[N:, :N] = S12.T
+    L_update[N:, N:] = S22
     return L_update

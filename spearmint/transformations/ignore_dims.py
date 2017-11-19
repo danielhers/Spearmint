@@ -190,9 +190,9 @@ from .abstract_transformation import AbstractTransformation
 
 class IgnoreDims(AbstractTransformation):
     def __init__(self, num_dims, to_ignore, name="IgnoreDims"):
-        self.name     = name
+        self.name = name
         self.num_dims = num_dims
-        self.ign      = np.array(to_ignore)
+        self.ign = np.array(to_ignore)
 
         self.validate_ign()
 
@@ -202,16 +202,13 @@ class IgnoreDims(AbstractTransformation):
 
     def forward_pass(self, inputs):
         new_inputs = inputs.copy()
-        
-        new_inputs[:,self.ign] = 0.0
+
+        new_inputs[:, self.ign] = 0.0
 
         return new_inputs
 
     def backward_pass(self, V):
         JV = V.copy()
-        JV[:,self.ign] = 0.0
+        JV[:, self.ign] = 0.0
 
         return JV
-
-
-

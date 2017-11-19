@@ -184,16 +184,16 @@
 
 import numpy        as np
 import numpy.random as npr
-
 from nose.tools import assert_raises
 
-from spearmint.transformations                         import Transformer, BetaWarp, Normalization, Linear
+from spearmint.transformations import Transformer, BetaWarp, Normalization, Linear
 from spearmint.transformations.abstract_transformation import AbstractTransformation
+
 
 class SimpleTransformation(AbstractTransformation):
     def __init__(self, num_dims):
         self.num_dims = num_dims
-        self._hypers  = np.ones(num_dims)
+        self._hypers = np.ones(num_dims)
 
     @property
     def hypers(self):
@@ -202,117 +202,122 @@ class SimpleTransformation(AbstractTransformation):
     def forward_pass(self, inputs):
         self._inputs = inputs.copy()
 
-        return 2*inputs
+        return 2 * inputs
 
     def backward_pass(self, V):
         return 2 * V * self._inputs
 
+
 def test_construction():
     npr.seed(1)
 
-    D   = 10
+    D = 10
 
-    norm      = Normalization(3)
-    norm_inds = [1,3,5]
+    norm = Normalization(3)
+    norm_inds = [1, 3, 5]
 
-    bw      = BetaWarp(2)
-    bw_inds = [0,2]
+    bw = BetaWarp(2)
+    bw_inds = [0, 2]
 
-    lin      = Linear(3)
-    lin_inds = [6,8,9]
+    lin = Linear(3)
+    lin_inds = [6, 8, 9]
 
     t = Transformer(D)
     t.add_layer((norm, norm_inds), (bw, bw_inds), (lin, lin_inds))
+
 
 def test_forward_pass_empty_transformer():
     N = 10
     D = 10
     t = Transformer(D)
-    data = 0.5*npr.rand(N,D)
+    data = 0.5 * npr.rand(N, D)
 
     assert_raises(AssertionError, t.forward_pass, data)
+
 
 def test_forward_pass():
     npr.seed(1)
 
-    N   = 15
-    D   = 10
+    N = 15
+    D = 10
 
-    data = 0.5*npr.rand(N,D)
+    data = 0.5 * npr.rand(N, D)
 
-    norm      = Normalization(3)
-    norm_inds = [1,3,5]
+    norm = Normalization(3)
+    norm_inds = [1, 3, 5]
 
-    bw      = BetaWarp(2)
-    bw_inds = [0,2]
+    bw = BetaWarp(2)
+    bw_inds = [0, 2]
 
-    lin      = Linear(3)
-    lin_inds = [6,8,9]
+    lin = Linear(3)
+    lin_inds = [6, 8, 9]
 
     t = Transformer(D)
     t.add_layer((norm, norm_inds), (bw, bw_inds), (lin, lin_inds))
 
     new_data = t.forward_pass(data)
     assert new_data.shape[1] == 9
-    assert np.all(new_data[:,7:] == data[:,[4,7]])
-    assert np.linalg.norm(new_data[:,0:3].sum(1) - 1) < 1e-10
+    assert np.all(new_data[:, 7:] == data[:, [4, 7]])
+    assert np.linalg.norm(new_data[:, 0:3].sum(1) - 1) < 1e-10
 
     bw = BetaWarp(9)
     t.add_layer(bw)
 
+
 def test_forward_pass_2():
     t = Transformer(10)
 
-    st1 = (SimpleTransformation(3),[0,2,4])
-    st2 = (SimpleTransformation(4),[1,3,5,7])
+    st1 = (SimpleTransformation(3), [0, 2, 4])
+    st2 = (SimpleTransformation(4), [1, 3, 5, 7])
     st3 = SimpleTransformation(10)
 
-    t.add_layer(st1,st2)
+    t.add_layer(st1, st2)
     t.add_layer(st3)
 
-    inputs = np.ones((2,10))
-    inputs[1,:] *= 2
+    inputs = np.ones((2, 10))
+    inputs[1, :] *= 2
     outputs = t.forward_pass(inputs)
     assert np.all(outputs == np.array([[4, 4, 4, 4, 4, 4, 4, 2, 2, 2],
-            [8, 8, 8, 8, 8, 8, 8, 4, 4, 4]]))
+                                       [8, 8, 8, 8, 8, 8, 8, 4, 4, 4]]))
+
 
 def test_backward_pass():
     npr.seed(1)
 
     eps = 1e-5
-    N   = 15
-    D   = 10
+    N = 15
+    D = 10
 
-    data = 0.5*npr.rand(N,D)
+    data = 0.5 * npr.rand(N, D)
 
-    norm      = Normalization(3)
-    norm_inds = [1,3,5]
+    norm = Normalization(3)
+    norm_inds = [1, 3, 5]
 
-    bw      = BetaWarp(2)
-    bw_inds = [0,2]
+    bw = BetaWarp(2)
+    bw_inds = [0, 2]
 
-    lin      = Linear(3)
-    lin_inds = [6,8,9]
+    lin = Linear(3)
+    lin_inds = [6, 8, 9]
 
     t = Transformer(D)
 
     # Add a layer and test the gradient
     t.add_layer((norm, norm_inds), (bw, bw_inds), (lin, lin_inds))
     new_data = t.forward_pass(data)
-    loss     = np.sum(new_data**2)
-    V        = 2*new_data
+    loss = np.sum(new_data ** 2)
+    V = 2 * new_data
 
     dloss = t.backward_pass(V)
-    
+
     dloss_est = np.zeros(dloss.shape)
-    for i in xrange(N):
-        for j in xrange(D):
-            data[i,j] += eps
-            loss_1 = np.sum(t.forward_pass(data)**2)
-            data[i,j] -= 2*eps
-            loss_2 = np.sum(t.forward_pass(data)**2)
-            data[i,j] += eps
-            dloss_est[i,j] = ((loss_1 - loss_2) / (2*eps))
+    for i in range(N):
+        for j in range(D):
+            data[i, j] += eps
+            loss_1 = np.sum(t.forward_pass(data) ** 2)
+            data[i, j] -= 2 * eps
+            loss_2 = np.sum(t.forward_pass(data) ** 2)
+            data[i, j] += eps
+            dloss_est[i, j] = ((loss_1 - loss_2) / (2 * eps))
 
     assert np.linalg.norm(dloss - dloss_est) < 1e-6
 
@@ -320,90 +325,91 @@ def test_backward_pass():
     t.add_layer(Linear(9))
 
     new_data = t.forward_pass(data)
-    loss     = np.sum(new_data**2)
-    V        = 2*new_data
+    loss = np.sum(new_data ** 2)
+    V = 2 * new_data
 
     dloss = t.backward_pass(V)
-    
+
     dloss_est = np.zeros(dloss.shape)
-    for i in xrange(N):
-        for j in xrange(D):
-            data[i,j] += eps
-            loss_1 = np.sum(t.forward_pass(data)**2)
-            data[i,j] -= 2*eps
-            loss_2 = np.sum(t.forward_pass(data)**2)
-            data[i,j] += eps
-            dloss_est[i,j] = ((loss_1 - loss_2) / (2*eps))
+    for i in range(N):
+        for j in range(D):
+            data[i, j] += eps
+            loss_1 = np.sum(t.forward_pass(data) ** 2)
+            data[i, j] -= 2 * eps
+            loss_2 = np.sum(t.forward_pass(data) ** 2)
+            data[i, j] += eps
+            dloss_est[i, j] = ((loss_1 - loss_2) / (2 * eps))
 
     assert np.linalg.norm(dloss - dloss_est) < 1e-6
+
 
 def test_backward_pass_2():
     t = Transformer(10)
 
-    st1 = (SimpleTransformation(3),[0,2,4])
-    st2 = (SimpleTransformation(4),[1,3,5,7])
+    st1 = (SimpleTransformation(3), [0, 2, 4])
+    st2 = (SimpleTransformation(4), [1, 3, 5, 7])
     st3 = SimpleTransformation(10)
 
-    t.add_layer(st1,st2)
+    t.add_layer(st1, st2)
     t.add_layer(st3)
 
-    inputs = np.ones((2,10))
-    inputs[1,:] *= 2
+    inputs = np.ones((2, 10))
+    inputs[1, :] *= 2
     t.forward_pass(inputs)
-    
-    V = np.ones((2,10))
-    V[1,:] *= 2
+
+    V = np.ones((2, 10))
+    V[1, :] *= 2
 
     grad = t.backward_pass(V)
 
     assert np.all(grad == np.array([[8, 8, 8, 8, 8, 8, 2, 8, 2, 2],
-            [64, 64, 64, 64, 64, 64, 8, 64, 8, 8]]))
+                                    [64, 64, 64, 64, 64, 64, 8, 64, 8, 8]]))
+
 
 def test_validate_layer():
     t = Transformer(10)
 
     # This is fine
-    layer_inds = [[1,2,3], [0,5,6,7]]
+    layer_inds = [[1, 2, 3], [0, 5, 6, 7]]
     t.validate_layer(layer_inds)
 
     # This should break - max index is greater than 9
-    layer_inds = [[1,2,3], [10,5,6,7]]
+    layer_inds = [[1, 2, 3], [10, 5, 6, 7]]
     assert_raises(AssertionError, t.validate_layer, layer_inds)
 
     # This should break - duplicate indices
-    layer_inds = [[1,2,3], [0,1,6,7]]
+    layer_inds = [[1, 2, 3], [0, 1, 6, 7]]
     assert_raises(AssertionError, t.validate_layer, layer_inds)
 
     # This should break - duplicate indices
-    layer_inds = [[1,2,1], [0,5,6,7]]
+    layer_inds = [[1, 2, 1], [0, 5, 6, 7]]
     assert_raises(AssertionError, t.validate_layer, layer_inds)
+
 
 def test_add_layer():
     t = Transformer(10)
 
-    st1 = (SimpleTransformation(3),[0,2,4])
-    st2 = (SimpleTransformation(4),[1,3,5,7])
+    st1 = (SimpleTransformation(3), [0, 2, 4])
+    st2 = (SimpleTransformation(4), [1, 3, 5, 7])
 
-    output_inds = t.add_layer(st1,st2)
+    output_inds = t.add_layer(st1, st2)
 
     assert t.layer_output_dims[0] == 10
-    assert output_inds == [[0,1,2], [3,4,5,6]]
+    assert output_inds == [[0, 1, 2], [3, 4, 5, 6]]
     assert t.layer_transformations[0][0] == st1[0] and t.layer_transformations[0][1] == st2[0]
-    assert t.layer_inds[0][0] == [0,2,4] and t.layer_inds[0][1] == [1,3,5,7]
-    assert t.layer_remaining_inds[0] == [6,8,9]
+    assert t.layer_inds[0][0] == [0, 2, 4] and t.layer_inds[0][1] == [1, 3, 5, 7]
+    assert t.layer_remaining_inds[0] == [6, 8, 9]
 
     assert_raises(AssertionError, t.add_layer, st1[0])
 
-
     t = Transformer(10)
 
-    st1 = (SimpleTransformation(3),[0,2,4])
-    st2 = (SimpleTransformation(4),[1,3,5,7])
+    st1 = (SimpleTransformation(3), [0, 2, 4])
+    st2 = (SimpleTransformation(4), [1, 3, 5, 7])
     st3 = SimpleTransformation(10)
 
-    t.add_layer(st1,st2)
+    t.add_layer(st1, st2)
 
     output_inds = t.add_layer(st3)
     assert len(t.layer_transformations) == 2
     assert output_inds == range(10)
-

@@ -187,37 +187,35 @@ import numpy.random as npr
 
 from spearmint.kernels import Matern52, Subset
 
+
 def test_grad():
     npr.seed(1)
 
-    eps  = 1e-5
-    N    = 10
-    M    = 5
-    D    = 5
-    inds = [0,2,4]
+    eps = 1e-5
+    N = 10
+    M = 5
+    D = 5
+    inds = [0, 2, 4]
 
     kernel = Subset(D, Matern52(len(inds)), inds)
 
-    data1 = npr.randn(N,D)
-    data2 = npr.randn(M,D)
+    data1 = npr.randn(N, D)
+    data2 = npr.randn(M, D)
 
-    loss  = np.sum(kernel.cross_cov(data1, data2))
+    loss = np.sum(kernel.cross_cov(data1, data2))
     dloss = kernel.cross_cov_grad_data(data1, data2).sum(0)
-    
-    dloss_est = np.zeros(dloss.shape)
-    for i in xrange(M):
-        for j in xrange(D):
-            data2[i,j] += eps
-            loss_1 = np.sum(kernel.cross_cov(data1, data2))
-            data2[i,j] -= 2*eps
-            loss_2 = np.sum(kernel.cross_cov(data1, data2))
-            data2[i,j] += eps
-            dloss_est[i,j] = ((loss_1 - loss_2) / (2*eps))
 
-    print 'Subset kernel grad using indices %s:' % inds
-    print dloss
+    dloss_est = np.zeros(dloss.shape)
+    for i in range(M):
+        for j in range(D):
+            data2[i, j] += eps
+            loss_1 = np.sum(kernel.cross_cov(data1, data2))
+            data2[i, j] -= 2 * eps
+            loss_2 = np.sum(kernel.cross_cov(data1, data2))
+            data2[i, j] += eps
+            dloss_est[i, j] = ((loss_1 - loss_2) / (2 * eps))
+
+    print('Subset kernel grad using indices %s:' % inds)
+    print(dloss)
 
     assert np.linalg.norm(dloss - dloss_est) < 1e-6
-
-
-

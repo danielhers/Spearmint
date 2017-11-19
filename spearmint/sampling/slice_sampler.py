@@ -184,13 +184,14 @@
 
 
 import sys
+
 import numpy        as np
 import numpy.random as npr
 
-from .mcmc             import slice_sample
 # from .mcmc             import slice_sample_simple as slice_sample
 from .abstract_sampler import AbstractSampler
-from ..utils           import param as hyperparameter_utils
+from .mcmc import slice_sample
+from ..utils import param as hyperparameter_utils
 
 
 class SliceSampler(AbstractSampler):
@@ -208,6 +209,7 @@ class SliceSampler(AbstractSampler):
         The atribute `value` of each element in the list is updated
         upon calling `self.sample()`.  
     """
+
     def logprob(self, x, model):
         """compute the log probability of observations x
         
@@ -221,21 +223,21 @@ class SliceSampler(AbstractSampler):
         """
         # set values of the parameers in self.params to be x
         hyperparameter_utils.set_params_from_array(self.params, x)
-        
+
         lp = 0.0
         # sum the log probabilities of the parameter priors
         for param in self.params:
             lp += param.prior_logprob()
 
-            if np.isnan(lp): # Positive infinity should be ok, right?
-                print 'Param diagnostics:'
+            if np.isnan(lp):  # Positive infinity should be ok, right?
+                print('Param diagnostics:')
                 param.print_diagnostics()
-                print 'Prior logprob: %f' % param.prior_logprob()
+                print('Prior logprob: %f' % param.prior_logprob())
                 raise Exception("Prior returned %f logprob" % lp)
 
         if not np.isfinite(lp):
             return lp
-        
+
         # include the log probability from the model
         lp += model.log_likelihood()
 
@@ -257,11 +259,11 @@ class SliceSampler(AbstractSampler):
         """
         # turn self.params into a 1d numpy array
         params_array = hyperparameter_utils.params_to_array(self.params)
-        for i in xrange(self.thinning + 1):
+        for i in range(self.thinning + 1):
             # get a new value for the parameter array via slice sampling
             params_array, current_ll = slice_sample(params_array, self.logprob, model, **self.sampler_options)
-            hyperparameter_utils.set_params_from_array(self.params, params_array) # Can this be untabbed safely?
-        self.current_ll = current_ll # for diagnostics
+            hyperparameter_utils.set_params_from_array(self.params, params_array)  # Can this be untabbed safely?
+        self.current_ll = current_ll  # for diagnostics
 
 
 if __name__ == '__main__':
@@ -271,25 +273,23 @@ if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
 
-
     n = 10000
 
     # Test on 1D Gaussian
     x_samples = np.zeros(n)
     x = np.zeros(1)
 
-    gsn = priors.Gaussian(mu = -1, sigma = 4)
+    gsn = priors.Gaussian(mu=-1, sigma=4)
 
-    for i in xrange(n):
+    for i in range(n):
         if i % 1000 == 0:
-            print 'Sample %d/%d' % (i,n)
+            print('Sample %d/%d' % (i, n))
 
-        x, cur_ll = slice_sample(x, gsn. logprob)
+        x, cur_ll = slice_sample(x, gsn.logprob)
         x_samples[i] = x.copy()
 
-    print '1D Gaussian actual mean: %f, mean of samples: %f' % (-1, np.mean(x_samples))
-    print '1D Gaussian actual sigma: %f, std of samples: %f' % (4, np.std(x_samples))
-
+    print('1D Gaussian actual mean: %f, mean of samples: %f' % (-1, np.mean(x_samples)))
+    print('1D Gaussian actual sigma: %f, std of samples: %f' % (4, np.std(x_samples)))
 
     plt.figure(1)
     plt.clf()
@@ -298,32 +298,30 @@ if __name__ == '__main__':
 
     # Test on 2D Gaussian
     mu = np.array([-2, 5])
-    a = npr.rand(2,2)
-    cov = np.dot(a,a.T)
+    a = npr.rand(2, 2)
+    cov = np.dot(a, a.T)
 
-    mvn = priors.MultivariateNormal(mu = mu, cov = cov)
-    x_samples = np.zeros((2,n))
+    mvn = priors.MultivariateNormal(mu=mu, cov=cov)
+    x_samples = np.zeros((2, n))
     x = np.zeros(2)
 
-    for i in xrange(n):
+    for i in range(n):
         if i % 1000 == 0:
-            print 'Sample %d/%d' % (i,n)
+            print('Sample %d/%d' % (i, n))
 
         x, cur_ll = slice_sample(x, mvn.logprob)
-        x_samples[:,i] = x.copy()
+        x_samples[:, i] = x.copy()
 
-    mu_samp = np.mean(x_samples,axis=1)
-    print '2D Gaussian:'
-    print 'Actual mean:     [%f,%f]' % (mu[0], mu[1])
-    print 'Mean of samples: [%f,%f]' % (mu_samp[0], mu_samp[1])
-    print 'Actual Cov:'
-    print str(cov)
-    print 'Cov of samples'
-    print str(np.cov(x_samples))
+    mu_samp = np.mean(x_samples, axis=1)
+    print('2D Gaussian:')
+    print('Actual mean:     [%f,%f]' % (mu[0], mu[1]))
+    print('Mean of samples: [%f,%f]' % (mu_samp[0], mu_samp[1]))
+    print('Actual Cov:')
+    print(str(cov))
+    print('Cov of samples')
+    print(str(np.cov(x_samples)))
 
     # plt.figure(1)
     # plt.clf()
     # plt.hist(x_samples, 40)
     # plt.savefig('slice_sampler_test.pdf')
-
-

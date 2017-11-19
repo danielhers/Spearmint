@@ -194,28 +194,30 @@ class Task(BaseTask):
     from the variables specified in a config file to a matrix
     representation that can be used in a chooser/model.
     """
-    
+
     def __init__(self, task_name, task_options, variables_config):
-        self.name       = task_name
-        self.type       = task_options['type'].lower()
-        self.options    = task_options # There may be many options here, like constraint
+        self.name = task_name
+        self.type = task_options['type'].lower()
+        self.options = task_options  # There may be many options here, like constraint
         # confidence thresholds, etc etc. We do not know exactly what they will be.
 
         self.variables_meta, self.num_dims, self.cardinality = self.variables_config_to_meta(variables_config)
 
-        #TODO: Validate the data
-        self._inputs  = np.array([])
+        # TODO: Validate the data
+        self._inputs = np.array([])
         self._pending = np.array([])
-        self._values  = np.array([])
-        self._costs   = np.array([])
+        self._values = np.array([])
+        self._costs = np.array([])
 
-        self.standardization_mean     = None
+        self.standardization_mean = None
         self.standardization_variance = None
 
     def has_valid_inputs(self):
         return self.valid_inputs.size > 0
+
     def has_inputs(self):
         return self._inputs.size > 0
+
     def has_pending(self):
         return self._pending.size > 0
 
@@ -276,8 +278,6 @@ class Task(BaseTask):
 
         return dd
 
-
-
     def standardize_mean(self, y):
         if y.size == 0:
             return y
@@ -286,12 +286,11 @@ class Task(BaseTask):
         self.standardization_mean = mean
         return y - mean
 
-
     def standardize_variance(self, y):
         if y.size == 0:
             return y
 
-        y_std  = y.std()
+        y_std = y.std()
 
         if y_std == 0:
             y_std = 1.0
@@ -306,10 +305,8 @@ class Task(BaseTask):
 
         return y + self.standardization_mean
 
-
     def unstandardize_variance(self, y):
         if self.standardization_variance is None:
             raise Exception("values were never standardized")
 
         return y * self.standardization_variance
-

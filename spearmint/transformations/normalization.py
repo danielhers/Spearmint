@@ -184,6 +184,7 @@
 
 
 import warnings
+
 import numpy as np
 
 from .abstract_transformation import AbstractTransformation
@@ -197,14 +198,17 @@ def truncate_inputs(func):
 
     Ensures the inputs is non-negative so that it can be normalized.
     """
+
     def inner(cls_instance, inputs, *args):
         inputs = inputs.copy()
         if np.any(inputs < 0):
-            warnings.warn('Normalization encountered negative values: %s' % inputs[inputs<0])
-            inputs[inputs<0] = 0.0
+            warnings.warn('Normalization encountered negative values: %s' % inputs[inputs < 0])
+            inputs[inputs < 0] = 0.0
 
         return func(cls_instance, inputs, *args)
+
     return inner
+
 
 class Normalization(AbstractTransformation):
     def __init__(self, num_dims, name="Normalization"):
@@ -215,13 +219,12 @@ class Normalization(AbstractTransformation):
     def forward_pass(self, inputs):
         self._inputs = inputs
 
-        return (inputs+EPSILON) / (inputs+EPSILON).sum(1)[:,None]
+        return (inputs + EPSILON) / (inputs + EPSILON).sum(1)[:, None]
 
     def backward_pass(self, V):
-        s = (self._inputs+EPSILON).sum(1)
+        s = (self._inputs + EPSILON).sum(1)
         if V.ndim == 2:
-            return V/s[:,None] - (((self._inputs+EPSILON)*V).sum(1)/(s**2))[:,None]
+            return V / s[:, None] - (((self._inputs + EPSILON) * V).sum(1) / (s ** 2))[:, None]
         elif V.ndim == 3:
-            return V/s[np.newaxis,:,np.newaxis,] - (((self._inputs+EPSILON)*V).sum(-1)/(s[np.newaxis,:]**2))[:,:,np.newaxis]
-
-
+            return V / s[np.newaxis, :, np.newaxis, ] - (((self._inputs + EPSILON) * V).sum(-1) / (
+            s[np.newaxis, :] ** 2))[:, :, np.newaxis]

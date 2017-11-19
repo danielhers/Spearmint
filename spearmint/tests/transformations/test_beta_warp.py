@@ -186,74 +186,74 @@ import warnings
 
 import numpy        as np
 import numpy.random as npr
-
 from nose.tools import assert_raises
 
 from spearmint.transformations import BetaWarp
-from spearmint.utils           import priors
-from spearmint.utils.param     import Param as Hyperparameter
+from spearmint.utils import priors
+from spearmint.utils.param import Param as Hyperparameter
+
 
 def test_validation():
     warnings.filterwarnings('error')
     npr.seed(1)
 
-    N   = 10
-    D   = 3
+    N = 10
+    D = 3
 
     bw = BetaWarp(D)
 
-    data = npr.randn(N,D)
+    data = npr.randn(N, D)
 
     assert_raises(UserWarning, bw.forward_pass, data)
+
 
 def test_forward_pass():
     npr.seed(1)
 
-    N   = 10
-    D   = 3
+    N = 10
+    D = 3
 
     alpha = Hyperparameter(
-        initial_value = 2*np.ones(D),
-        prior         = priors.Lognormal(1.5),
-        name          = 'alpha'
+        initial_value=2 * np.ones(D),
+        prior=priors.Lognormal(1.5),
+        name='alpha'
     )
 
     beta = Hyperparameter(
-        initial_value = 0.5*np.ones(D),
-        prior         = priors.Lognormal(1.5),
-        name          = 'beta'
+        initial_value=0.5 * np.ones(D),
+        prior=priors.Lognormal(1.5),
+        name='beta'
     )
 
     bw = BetaWarp(D, alpha=alpha, beta=beta)
 
-    data = 0.5*np.ones(D)
+    data = 0.5 * np.ones(D)
 
     assert np.all(bw.forward_pass(data) == 0.1161165235168156)
+
 
 def test_backward_pass():
     npr.seed(1)
 
-    N   = 10
-    D   = 3
+    N = 10
+    D = 3
 
     alpha = Hyperparameter(
-        initial_value = 2*np.ones(D),
-        prior         = priors.Lognormal(1.5),
-        name          = 'alpha'
+        initial_value=2 * np.ones(D),
+        prior=priors.Lognormal(1.5),
+        name='alpha'
     )
 
     beta = Hyperparameter(
-        initial_value = 0.5*np.ones(D),
-        prior         = priors.Lognormal(1.5),
-        name          = 'beta'
+        initial_value=0.5 * np.ones(D),
+        prior=priors.Lognormal(1.5),
+        name='beta'
     )
 
     bw = BetaWarp(D, alpha=alpha, beta=beta)
 
-    data = 0.5*np.ones(D)
-    v    = npr.randn(D)
+    data = 0.5 * np.ones(D)
+    v = npr.randn(D)
 
     bw.forward_pass(data)
-    assert np.all(bw.backward_pass(v) == 0.53033008588991071*v)
-
-
+    assert np.all(bw.backward_pass(v) == 0.53033008588991071 * v)

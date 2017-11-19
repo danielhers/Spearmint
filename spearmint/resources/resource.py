@@ -181,14 +181,13 @@
 # 13. End User represents and warrants that it has the legal authority
 # to enter into this License and Terms of Use on behalf of itself and
 # its Institution.
-
-
-import spearmint
-
 import importlib
-from operator import add
-import numpy as np
 import sys
+from functools import reduce
+from operator import add
+
+import numpy as np
+
 
 def parse_resources_from_config(config):
     """Parse the config dict and return a dictionary of resource objects keyed by resource name"""
@@ -197,15 +196,16 @@ def parse_resources_from_config(config):
     if "resources" not in config:
         default_resource_name = 'Main'
         task_names = parse_tasks_in_resource_from_config(config, default_resource_name)
-        return {default_resource_name : resource_factory(default_resource_name, task_names, config)}
+        return {default_resource_name: resource_factory(default_resource_name, task_names, config)}
 
     # If resources are specified
     else:
         resources = dict()
-        for resource_name, resource_opts in config["resources"].iteritems():
+        for resource_name, resource_opts in config["resources"].items():
             task_names = parse_tasks_in_resource_from_config(config, resource_name)
             resources[resource_name] = resource_factory(resource_name, task_names, resource_opts)
         return resources
+
 
 def parse_tasks_in_resource_from_config(config, resource_name):
     """parse the config dict and return a list of task names that use the given resource name"""
@@ -217,7 +217,7 @@ def parse_tasks_in_resource_from_config(config, resource_name):
         return ['main']
     else:
         tasks = list()
-        for task_name, task_config in config["tasks"].iteritems():
+        for task_name, task_config in config["tasks"].items():
             # If the user specified tasks but not specific resources for those tasks,
             # We have to assume the tasks run on all resources...
             if "resources" not in task_config:
@@ -226,29 +226,30 @@ def parse_tasks_in_resource_from_config(config, resource_name):
                 if resource_name in task_config["resources"]:
                     tasks.append(task_name)
 
-        return tasks 
+        return tasks
 
 
 def resource_factory(resource_name, task_names, config):
     """return a resource object constructed from the resource name, task names, and config dict"""
-    scheduler_class  = config.get("scheduler", "local")
+    scheduler_class = config.get("scheduler", "local")
     scheduler_object = importlib.import_module('spearmint.schedulers.' + scheduler_class).init(config)
 
     max_concurrent = config.get('max-concurrent', 1)
     max_finished_jobs = config.get('max-finished-jobs', np.inf)
 
-    return Resource(resource_name, task_names, scheduler_object, 
+    return Resource(resource_name, task_names, scheduler_object,
                     scheduler_class, max_concurrent, max_finished_jobs)
+
 
 def print_resources_status(resources, jobs):
     """Print out the status of the resources"""
     if len(resources) == 1:
         sys.stderr.write('Status: %d pending, %d complete.\n\n'
-            % (resources[0].numPending(jobs), resources[0].numComplete(jobs)))
+                         % (resources[0].numPending(jobs), resources[0].numComplete(jobs)))
     else:
         sys.stderr.write('\nResources:      ')
-        left_indent=16
-        indentation = ' '*left_indent
+        left_indent = 16
+        indentation = ' ' * left_indent
 
         sys.stderr.write('NAME          PENDING    COMPLETE\n')
         sys.stderr.write(indentation)
@@ -263,6 +264,7 @@ def print_resources_status(resources, jobs):
             sys.stderr.write("%s%-12.12s  %-9d  %-10d\n" % (indentation, resource.name, p, c))
         sys.stderr.write("%s%-12.12s  %-9d  %-10d\n" % (indentation, '*TOTAL*', totalPending, totalComplete))
         sys.stderr.write('\n')
+
 
 class Resource(object):
     """class which manages the job resources
@@ -284,12 +286,12 @@ class Resource(object):
     """
 
     def __init__(self, name, tasks, scheduler, scheduler_class, max_concurrent, max_finished_jobs):
-        self.name              = name
-        self.scheduler         = scheduler
-        self.scheduler_class   = scheduler_class   # stored just for printing
-        self.max_concurrent    = max_concurrent
+        self.name = name
+        self.scheduler = scheduler
+        self.scheduler_class = scheduler_class  # stored just for printing
+        self.max_concurrent = max_concurrent
         self.max_finished_jobs = max_finished_jobs
-        self.tasks             = tasks
+        self.tasks = tasks
 
         if len(self.tasks) == 0:
             sys.stderr.write("Warning: resource %s has no tasks assigned to it" % self.name)
@@ -297,7 +299,7 @@ class Resource(object):
     def filterMyJobs(self, jobs):
         """Take a list of jobs and filter only those that are running/run on this resource"""
         if jobs:
-            return filter(lambda job: job['resource']==self.name, jobs)
+            return filter(lambda job: job['resource'] == self.name, jobs)
         else:
             return jobs
 
@@ -321,15 +323,15 @@ class Resource(object):
         """Is this resource currently accepting new jobs?"""
         if self.numPending(jobs) >= self.max_concurrent:
             return False
-        
+
         if self.numComplete(jobs) >= self.max_finished_jobs:
             return False
 
-        return True 
+        return True
 
     def printStatus(self, jobs):
         sys.stderr.write("%-12s: %5d pending %5d complete\n" %
-            (self.name, self.numPending(jobs), self.numComplete(jobs)))
+                         (self.name, self.numPending(jobs), self.numComplete(jobs)))
 
     def isJobAlive(self, job):
         """Is a particular job alive?"""
@@ -358,10 +360,9 @@ class Resource(object):
         process_id = self.scheduler.submit(job['id'], experiment_name, expt_dir, db_address)
 
         if process_id is not None:
-            sys.stderr.write('Submitted job %d with %s scheduler (process id: %d).\n' % 
-                (job['id'], self.scheduler_class, process_id))
+            sys.stderr.write('Submitted job %d with %s scheduler (process id: %d).\n' %
+                             (job['id'], self.scheduler_class, process_id))
         else:
             sys.stderr.write('Failed to submit job %d.\n' % job['id'])
 
         return process_id
-

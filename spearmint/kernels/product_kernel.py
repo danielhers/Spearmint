@@ -195,19 +195,20 @@ class ProductKernel(AbstractKernel):
         self.kernels = kernels
 
     def cov(self, inputs):
-        return reduce(lambda K1, K2: K1*K2, [kernel.cov(inputs) for kernel in self.kernels])
+        return reduce(lambda K1, K2: K1 * K2, [kernel.cov(inputs) for kernel in self.kernels])
 
     def diag_cov(self, inputs):
-        return reduce(lambda K1, K2: K1*K2, [kernel.diag_cov(inputs) for kernel in self.kernels])
+        return reduce(lambda K1, K2: K1 * K2, [kernel.diag_cov(inputs) for kernel in self.kernels])
 
     def cross_cov(self, inputs_1, inputs_2):
-        return reduce(lambda K1, K2: K1*K2, [kernel.cross_cov(inputs_1,inputs_2) for kernel in self.kernels])
+        return reduce(lambda K1, K2: K1 * K2, [kernel.cross_cov(inputs_1, inputs_2) for kernel in self.kernels])
 
     # This is the gradient wrt **inputs_2**
     def cross_cov_grad_data(self, inputs_1, inputs_2):
-        vals  = np.array([kernel.cross_cov(inputs_1,inputs_2) for kernel in self.kernels])
-        vprod = reduce(lambda x, y: x*y, vals)
-        grads = np.array([kernel.cross_cov_grad_data(inputs_1,inputs_2) for kernel in self.kernels])
-        V     = vals == 0
+        vals = np.array([kernel.cross_cov(inputs_1, inputs_2) for kernel in self.kernels])
+        vprod = reduce(lambda x, y: x * y, vals)
+        grads = np.array([kernel.cross_cov_grad_data(inputs_1, inputs_2) for kernel in self.kernels])
+        V = vals == 0
 
-        return (((vprod[:,:,np.newaxis]*grads) / (vals + V)[:,:,:,np.newaxis]) + (V[:,:,:,np.newaxis]*grads)).sum(0)
+        return (
+        ((vprod[:, :, np.newaxis] * grads) / (vals + V)[:, :, :, np.newaxis]) + (V[:, :, :, np.newaxis] * grads)).sum(0)

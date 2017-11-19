@@ -183,25 +183,29 @@
 # its Institution.
 
 import zlib
+
 import numpy as np
 
 COMPRESS_TYPE = 'compressed array'
 
+
 # TODO: see if there is a better way to encode this than base64
 # It takes about 0.65 seconds to compress a 1000x1000 array on a 2011 Macbook air
 def compress_array(a):
-    return {'ctype'  : COMPRESS_TYPE,
-            'shape'  : list(a.shape),
-            'value'  : (zlib.compress(a).encode('base64'))}
+    return {'ctype': COMPRESS_TYPE,
+            'shape': list(a.shape),
+            'value': (zlib.compress(a))}
+
 
 # It takes about 0.15 seconds to decompress a 1000x1000 array on a 2011 Macbook air
 def decompress_array(a):
-    return np.fromstring(zlib.decompress(a['value'].decode('base64'))).reshape(a['shape'])
+    return np.fromstring(zlib.decompress(a['value'])).reshape(a['shape'])
+
 
 def compress_nested_container(u_container):
     if isinstance(u_container, dict):
         cdict = {}
-        for key, value in u_container.iteritems():
+        for key, value in u_container.items():
             if isinstance(value, dict) or isinstance(value, list):
                 cdict[key] = compress_nested_container(value)
             else:
@@ -224,16 +228,17 @@ def compress_nested_container(u_container):
 
         return clist
 
+
 def decompress_nested_container(c_container):
     if isinstance(c_container, dict):
-        if c_container.has_key('ctype') and c_container['ctype'] == COMPRESS_TYPE:
+        if c_container.get('ctype') == COMPRESS_TYPE:
             try:
                 return decompress_array(c_container)
             except:
                 raise Exception('Container does not contain a valid array.')
         else:
             udict = {}
-            for key, value in c_container.iteritems():
+            for key, value in c_container.items():
                 if isinstance(value, dict) or isinstance(value, list):
                     udict[key] = decompress_nested_container(value)
                 else:
@@ -250,14 +255,15 @@ def decompress_nested_container(c_container):
 
         return ulist
 
+
 def test_compression():
     b = np.random.randn(10)
-    c = np.random.randn(5,1)
-    e = np.random.randn(2,3)
-    f = np.random.randn(1,2)
-    g = np.random.randn(4,2,3)
+    c = np.random.randn(5, 1)
+    e = np.random.randn(2, 3)
+    f = np.random.randn(1, 2)
+    g = np.random.randn(4, 2, 3)
 
-    d = {'a': {'b': b, 'c': c}, 'e': [e,[f,g]]}
+    d = {'a': {'b': b, 'c': c}, 'e': [e, [f, g]]}
 
     dc = compress_nested_container(d)
     du = decompress_nested_container(dc)
@@ -265,9 +271,10 @@ def test_compression():
     v1 = [d['a']['b'], d['a']['c'], d['e'][0], d['e'][1][0], d['e'][1][1]]
     v2 = [du['a']['b'], du['a']['c'], du['e'][0], du['e'][1][0], du['e'][1][1]]
 
-    comp = [np.all(i==j) for i,j in zip(v1,v2)]
+    comp = [np.all(i == j) for i, j in zip(v1, v2)]
 
     return np.all(comp)
+
 
 if __name__ == '__main__':
     test_compression()

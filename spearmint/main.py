@@ -182,26 +182,29 @@
 # to enter into this License and Terms of Use on behalf of itself and
 # its Institution.
 
-import sys
-import optparse
 import importlib
-import time
+import optparse
 import os
+import sys
+import time
 
 import numpy as np
 
-try: import simplejson as json
-except ImportError: import json
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 from collections import OrderedDict
 
 from spearmint.utils.database.mongodb import MongoDB
-from spearmint.tasks.task_group       import TaskGroup
+from spearmint.tasks.task_group import TaskGroup
 
 from spearmint.resources.resource import parse_resources_from_config
 from spearmint.resources.resource import print_resources_status
 
 from spearmint.utils.parsing import parse_db_address
+
 
 def get_options():
     parser = optparse.OptionParser(usage="usage: %prog [options] directory")
@@ -213,7 +216,7 @@ def get_options():
     (commandline_kwargs, args) = parser.parse_args()
 
     # Read in the config file
-    expt_dir  = os.path.realpath(os.path.expanduser(args[0]))
+    expt_dir = os.path.realpath(os.path.expanduser(args[0]))
     if not os.path.isdir(expt_dir):
         raise Exception("Cannot find directory %s" % expt_dir)
     expt_file = os.path.join(expt_dir, commandline_kwargs.config_file)
@@ -223,13 +226,12 @@ def get_options():
             options = json.load(f, object_pairs_hook=OrderedDict)
     except:
         raise Exception("config.json did not load properly. Perhaps a spurious comma?")
-    options["config"]  = commandline_kwargs.config_file
-
+    options["config"] = commandline_kwargs.config_file
 
     # Set sensible defaults for options
-    options['chooser']  = options.get('chooser', 'default_chooser')
+    options['chooser'] = options.get('chooser', 'default_chooser')
     if 'tasks' not in options:
-        options['tasks'] = {'main' : {'type' : 'OBJECTIVE', 'likelihood' : options.get('likelihood', 'GAUSSIAN')}}
+        options['tasks'] = {'main': {'type': 'OBJECTIVE', 'likelihood': options.get('likelihood', 'GAUSSIAN')}}
 
     # Set DB address
     db_address = parse_db_address(options)
@@ -245,6 +247,7 @@ def get_options():
 
     return options, expt_dir
 
+
 def main():
     options, expt_dir = get_options()
 
@@ -253,16 +256,16 @@ def main():
     # Load up the chooser.
     chooser_module = importlib.import_module('spearmint.choosers.' + options['chooser'])
     chooser = chooser_module.init(options)
-    experiment_name     = options.get("experiment-name", 'unnamed-experiment')
+    experiment_name = options.get("experiment-name", 'unnamed-experiment')
 
     # Connect to the database
     db_address = options['database']['address']
-    sys.stderr.write('Using database at %s.\n' % db_address)        
-    db         = MongoDB(database_address=db_address)
-    
+    sys.stderr.write('Using database at %s.\n' % db_address)
+    db = MongoDB(database_address=db_address)
+
     while True:
 
-        for resource_name, resource in resources.iteritems():
+        for resource_name, resource in resources.items():
 
             jobs = load_jobs(db, experiment_name)
             # resource.printStatus(jobs)
@@ -278,13 +281,13 @@ def main():
                 # Load jobs from DB 
                 # (move out of one or both loops?) would need to pass into load_tasks
                 jobs = load_jobs(db, experiment_name)
-                
+
                 # Remove any broken jobs from pending.
                 remove_broken_jobs(db, jobs, experiment_name, resources)
 
                 # Get a suggestion for the next job
                 suggested_job = get_suggestion(chooser, resource.tasks, db, expt_dir, options, resource_name)
-    
+
                 # Submit the job to the appropriate resource
                 process_id = resource.attemptDispatch(experiment_name, suggested_job, db_address, expt_dir)
 
@@ -308,15 +311,17 @@ def main():
         if tired(db, experiment_name, resources):
             time.sleep(options.get('polling-time', 5))
 
+
 def tired(db, experiment_name, resources):
     """
     return True if no resources are accepting jobs
     """
     jobs = load_jobs(db, experiment_name)
-    for resource_name, resource in resources.iteritems():
+    for resource_name, resource in resources.items():
         if resource.acceptingJobs(jobs):
             return False
     return True
+
 
 def remove_broken_jobs(db, jobs, experiment_name, resources):
     """
@@ -331,17 +336,17 @@ def remove_broken_jobs(db, jobs, experiment_name, resources):
                     job['status'] = 'broken'
                     save_job(job, db, experiment_name)
 
+
 # TODO: support decoupling i.e. task_names containing more than one task,
 #       and the chooser must choose between them in addition to choosing X
 def get_suggestion(chooser, task_names, db, expt_dir, options, resource_name):
-
     if len(task_names) == 0:
         raise Exception("Error: trying to obtain suggestion for 0 tasks ")
 
     experiment_name = options['experiment-name']
 
     # We are only interested in the tasks in task_names
-    task_options = { task: options["tasks"][task] for task in task_names }
+    task_options = {task: options["tasks"][task] for task in task_names}
     # For now we aren't doing any multi-task, so the below is simpler
     # task_options = options["tasks"]
 
@@ -361,7 +366,7 @@ def get_suggestion(chooser, task_names, db, expt_dir, options, resource_name):
     suggested_input = chooser.suggest()
 
     # TODO: implelent this
-    suggested_task = task_names[0]  
+    suggested_task = task_names[0]
 
     # Parse out the name of the main file (TODO: move this elsewhere)
     if "main-file" in task_options[suggested_task]:
@@ -378,35 +383,37 @@ def get_suggestion(chooser, task_names, db, expt_dir, options, resource_name):
     else:
         raise Exception("language not specified for task %s" % suggested_task)
 
-
     jobs = load_jobs(db, experiment_name)
 
     job_id = len(jobs) + 1
 
     job = {
-        'id'          : job_id,
-        'params'      : task_group.paramify(suggested_input),
-        'expt_dir'    : expt_dir,
-        'tasks'       : task_names,
-        'resource'    : resource_name,
-        'main-file'   : main_file,
-        'language'    : language,
-        'status'      : 'new',
-        'submit time' : time.time(),
-        'start time'  : None,
-        'end time'    : None
+        'id': job_id,
+        'params': task_group.paramify(suggested_input),
+        'expt_dir': expt_dir,
+        'tasks': task_names,
+        'resource': resource_name,
+        'main-file': main_file,
+        'language': language,
+        'status': 'new',
+        'submit time': time.time(),
+        'start time': None,
+        'end time': None
     }
 
     save_job(job, db, experiment_name)
 
     return job
 
+
 def save_hypers(hypers, db, experiment_name):
     if hypers:
         db.save(hypers, experiment_name, 'hypers')
 
+
 def load_hypers(db, experiment_name):
     return db.load(experiment_name, 'hypers')
+
 
 def load_jobs(db, experiment_name):
     """load the jobs from the database
@@ -425,29 +432,31 @@ def load_jobs(db, experiment_name):
 
     return jobs
 
+
 def save_job(job, db, experiment_name):
     """save a job to the database"""
-    db.save(job, experiment_name, 'jobs', {'id' : job['id']})
+    db.save(job, experiment_name, 'jobs', {'id': job['id']})
+
 
 def load_task_group(db, options, task_names=None):
     if task_names is None:
         task_names = options['tasks'].keys()
-    task_options = { task: options["tasks"][task] for task in task_names }
+    task_options = {task: options["tasks"][task] for task in task_names}
 
     jobs = load_jobs(db, options['experiment-name'])
 
     task_group = TaskGroup(task_options, options['variables'])
 
     if jobs:
-        task_group.inputs  = np.array([task_group.vectorify(job['params'])
-                for job in jobs if job['status'] == 'complete'])
+        task_group.inputs = np.array([task_group.vectorify(job['params'])
+                                      for job in jobs if job['status'] == 'complete'])
 
         task_group.pending = np.array([task_group.vectorify(job['params'])
-                for job in jobs if job['status'] == 'pending'])
+                                       for job in jobs if job['status'] == 'pending'])
 
-        task_group.values  = {task : np.array([job['values'][task]
-                for job in jobs if job['status'] == 'complete'])
-                    for task in task_names}
+        task_group.values = {task: np.array([job['values'][task]
+                                             for job in jobs if job['status'] == 'complete'])
+                             for task in task_names}
 
         task_group.add_nan_task_if_nans()
 
@@ -459,17 +468,17 @@ def load_task_group(db, options, task_names=None):
 # BROKEN
 def print_diagnostics(chooser):
     sys.stderr.write("Optimizing over %d dimensions\n" % (expt_grid.vmap.cardinality))
-    best_val   = None
-    best_job   = None
+    best_val = None
+    best_job = None
     best_input = None
     if task.has_data():
         best_input, best_val = chooser.get_best()
-        best_job = db.load(experiment_name, 'jobs', {'input' : best_input})
+        best_job = db.load(experiment_name, 'jobs', {'input': best_input})
 
         if best_job:
             best_job = best_job[0]
         else:
-            best_job 
+            best_job
             raise Warning('Job ID of best input/value pair not recorded.')
 
     # Track the time series of optimization. This should eventually go into a diagnostics module.
@@ -481,7 +490,7 @@ def print_diagnostics(chooser):
 
     # Print out the best job results
     best_job_fh = open(os.path.join(expt_dir, 'best_job_and_result.txt'), 'w')
-    best_job_fh.write("Best result: %f\nJob-id: %d\nParameters: \n" % 
+    best_job_fh.write("Best result: %f\nJob-id: %d\nParameters: \n" %
                       (best_val, best_job))
 
     if best_input:
@@ -489,6 +498,7 @@ def print_diagnostics(chooser):
             best_job_fh.write('%s: %s\n' % (name, params))
 
     best_job_fh.close()
+
 
 if __name__ == '__main__':
     main()

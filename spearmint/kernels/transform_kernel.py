@@ -191,9 +191,10 @@ class TransformKernel(AbstractKernel):
     This kernel applies a transformation to the inputs and gives 
     the transformed inputs to another kernel.
     """
+
     def __init__(self, kernel, transformer, name='TransformKernel'):
-        self.name        = name
-        self.kernel      = kernel
+        self.name = name
+        self.kernel = kernel
         self.transformer = transformer
 
     def cov(self, inputs):
@@ -204,7 +205,7 @@ class TransformKernel(AbstractKernel):
 
     def cross_cov(self, inputs_1, inputs_2):
         return self.kernel.cross_cov(self.transformer.forward_pass(inputs_1),
-                self.transformer.forward_pass(inputs_2))
+                                     self.transformer.forward_pass(inputs_2))
 
     # This is the gradient wrt **inputs_2**
     def cross_cov_grad_data(self, inputs_1, inputs_2):
@@ -213,8 +214,7 @@ class TransformKernel(AbstractKernel):
         # computations. These need to be used in the backward pass.
         tinputs_1 = self.transformer.forward_pass(inputs_1)
         tinputs_2 = self.transformer.forward_pass(inputs_2)
-        
-        kernel_grad = self.kernel.cross_cov_grad_data(tinputs_1,tinputs_2)
+
+        kernel_grad = self.kernel.cross_cov_grad_data(tinputs_1, tinputs_2)
 
         return self.transformer.backward_pass(kernel_grad)
-

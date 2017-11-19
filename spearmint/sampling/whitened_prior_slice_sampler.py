@@ -184,17 +184,18 @@
 
 
 import sys
+
 import numpy        as np
 import numpy.random as npr
 import scipy.linalg as spla
 
-from .mcmc             import slice_sample
 # from .mcmc             import slice_sample_simple as slice_sample
 from .abstract_sampler import AbstractSampler
-from ..utils           import param as hyperparameter_utils
+from .mcmc import slice_sample
+from ..utils import param as hyperparameter_utils
 
 
-class WhitenedPriorSliceSampler(AbstractSampler): 
+class WhitenedPriorSliceSampler(AbstractSampler):
     """  
     Prior whitening works as follows:
     First, compute the "inherent randomness" of the latent values
@@ -206,8 +207,8 @@ class WhitenedPriorSliceSampler(AbstractSampler):
 
     def _compute_implied_y(self, model, nu):
         K_XX = model.noiseless_kernel.cov(model.inputs)
-        L    = spla.cholesky(K_XX, lower=True) 
-        
+        L = spla.cholesky(K_XX, lower=True)
+
         return np.dot(L, nu) + model.mean.value
 
     def logprob(self, x, model, nu):
@@ -215,7 +216,7 @@ class WhitenedPriorSliceSampler(AbstractSampler):
         lp = 0.0
         for param in self.params:
             lp += param.prior_logprob()
-        
+
         # Compute this if prior logprob is finite AND there is data
         if np.isfinite(lp) and nu is not None:
             # Get implied y from nu
@@ -227,21 +228,21 @@ class WhitenedPriorSliceSampler(AbstractSampler):
         return lp
 
     def sample(self, model):
-        for i in xrange(self.thinning + 1):
+        for i in range(self.thinning + 1):
             params_array, new_latent_values, current_ll = self.sample_fun(model, **self.sampler_options)
             hyperparameter_utils.set_params_from_array(self.params, params_array)
             model.latent_values.set_value(new_latent_values)
-        self.current_ll = current_ll # for diagnostics
+        self.current_ll = current_ll  # for diagnostics
 
     def sample_fun(self, model, **sampler_options):
         params_array = hyperparameter_utils.params_to_array(self.params)
 
         if model.has_data:
-            K_XX      = model.noiseless_kernel.cov(model.inputs)
+            K_XX = model.noiseless_kernel.cov(model.inputs)
             current_L = spla.cholesky(K_XX, lower=True)
-            nu        = spla.solve_triangular(current_L, model.latent_values.value-model.mean.value, lower=True)
+            nu = spla.solve_triangular(current_L, model.latent_values.value - model.mean.value, lower=True)
         else:
-            nu = None # if no data
+            nu = None  # if no data
 
         new_params, current_ll = slice_sample(params_array, self.logprob, model, nu, **sampler_options)
 
@@ -257,25 +258,23 @@ if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
 
-
     n = 10000
 
     # Test on 1D Gaussian
     x_samples = np.zeros(n)
     x = np.zeros(1)
 
-    gsn = priors.Gaussian(mu = -1, sigma = 4)
+    gsn = priors.Gaussian(mu=-1, sigma=4)
 
-    for i in xrange(n):
+    for i in range(n):
         if i % 1000 == 0:
-            print 'Sample %d/%d' % (i,n)
+            print('Sample %d/%d' % (i, n))
 
-        x, cur_ll = slice_sample(x, gsn. logprob)
+        x, cur_ll = slice_sample(x, gsn.logprob)
         x_samples[i] = x.copy()
 
-    print '1D Gaussian actual mean: %f, mean of samples: %f' % (-1, np.mean(x_samples))
-    print '1D Gaussian actual sigma: %f, std of samples: %f' % (4, np.std(x_samples))
-
+    print('1D Gaussian actual mean: %f, mean of samples: %f' % (-1, np.mean(x_samples)))
+    print('1D Gaussian actual sigma: %f, std of samples: %f' % (4, np.std(x_samples)))
 
     plt.figure(1)
     plt.clf()
@@ -284,32 +283,30 @@ if __name__ == '__main__':
 
     # Test on 2D Gaussian
     mu = np.array([-2, 5])
-    a = npr.rand(2,2)
-    cov = np.dot(a,a.T)
+    a = npr.rand(2, 2)
+    cov = np.dot(a, a.T)
 
-    mvn = priors.MultivariateNormal(mu = mu, cov = cov)
-    x_samples = np.zeros((2,n))
+    mvn = priors.MultivariateNormal(mu=mu, cov=cov)
+    x_samples = np.zeros((2, n))
     x = np.zeros(2)
 
-    for i in xrange(n):
+    for i in range(n):
         if i % 1000 == 0:
-            print 'Sample %d/%d' % (i,n)
+            print('Sample %d/%d' % (i, n))
 
         x, cur_ll = slice_sample(x, mvn.logprob)
-        x_samples[:,i] = x.copy()
+        x_samples[:, i] = x.copy()
 
-    mu_samp = np.mean(x_samples,axis=1)
-    print '2D Gaussian:'
-    print 'Actual mean:     [%f,%f]' % (mu[0], mu[1])
-    print 'Mean of samples: [%f,%f]' % (mu_samp[0], mu_samp[1])
-    print 'Actual Cov:'
-    print str(cov)
-    print 'Cov of samples'
-    print str(np.cov(x_samples))
+    mu_samp = np.mean(x_samples, axis=1)
+    print('2D Gaussian:')
+    print('Actual mean:     [%f,%f]' % (mu[0], mu[1]))
+    print('Mean of samples: [%f,%f]' % (mu_samp[0], mu_samp[1]))
+    print('Actual Cov:')
+    print(str(cov))
+    print('Cov of samples')
+    print(str(np.cov(x_samples)))
 
     # plt.figure(1)
     # plt.clf()
     # plt.hist(x_samples, 40)
     # plt.savefig('slice_sampler_test.pdf')
-
-

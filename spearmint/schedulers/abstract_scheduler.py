@@ -185,12 +185,13 @@
 
 from abc import ABCMeta, abstractmethod
 
+
 class AbstractScheduler(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, options):
         self.options = options
-        
+
     @abstractmethod
     def submit(self, job_id, experiment_name, experiment_dir, database_address):
         pass
@@ -198,7 +199,3 @@ class AbstractScheduler(object):
     @abstractmethod
     def alive(self):
         pass
-
-
-
-

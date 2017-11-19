@@ -184,8 +184,9 @@
 
 
 import sys
-import numpy as np
 from collections import OrderedDict
+
+import numpy as np
 
 
 class BaseTask(object):
@@ -204,13 +205,13 @@ class BaseTask(object):
         # each variable and associated column indices in the matrix
         # representation.
         variables_meta = OrderedDict()
-        cardinality    = 0 # The number of distinct variables
-        num_dims       = 0 # The number of dimensions in the matrix representation
+        cardinality = 0  # The number of distinct variables
+        num_dims = 0  # The number of dimensions in the matrix representation
 
-        for name, variable in variables_config.iteritems():
+        for name, variable in variables_config.items():
             cardinality += variable['size']
-            vdict = {'type'    : variable['type'].lower(),
-                     'indices' : []} # indices stores a mapping from these variable(s) to their matrix column(s)
+            vdict = {'type': variable['type'].lower(),
+                     'indices': []}  # indices stores a mapping from these variable(s) to their matrix column(s)
 
             if vdict['type'] == 'int':
                 vdict['min'] = int(variable['min'])
@@ -223,7 +224,7 @@ class BaseTask(object):
             else:
                 raise Exception("Unknown variable type.")
 
-            for i in xrange(variable['size']):
+            for i in range(variable['size']):
                 if vdict['type'] == 'int':
                     vdict['indices'].append(num_dims)
                     num_dims += 1
@@ -242,15 +243,15 @@ class BaseTask(object):
 
     def paramify_and_print(self, data_vector, left_indent=0, indent_top_row=False):
         params = self.paramify(data_vector)
-        indentation = ' '*left_indent
-        
+        indentation = ' ' * left_indent
+
         if indent_top_row:
             sys.stderr.write(indentation)
         sys.stderr.write('NAME          TYPE       VALUE\n')
         sys.stderr.write(indentation)
         sys.stderr.write('----          ----       -----\n')
 
-        for param_name, param in params.iteritems():
+        for param_name, param in params.items():
 
             if param['type'] == 'float':
                 format_str = '%s%-12.12s  %-9.9s  %-12f\n'
@@ -259,11 +260,11 @@ class BaseTask(object):
             else:
                 format_str = '%s%-12.12s  %-9.9s  %-12d\n'
 
-            for i in xrange(len(param['values'])):
+            for i in range(len(param['values'])):
                 if i == 0:
                     sys.stderr.write(format_str % (indentation, param_name, param['type'], param['values'][i]))
                 else:
-                    sys.stderr.write(format_str % (indentation, '',                        param['values'][i]))
+                    sys.stderr.write(format_str % (indentation, '', param['values'][i]))
 
     # Converts a vector in input space to the corresponding dict of params
     def paramify(self, data_vector):
@@ -273,7 +274,7 @@ class BaseTask(object):
             raise Exception('Input to paramify must be a 1-D array.')
 
         params = {}
-        for name, vdict in self.variables_meta.iteritems():
+        for name, vdict in self.variables_meta.items():
             indices = vdict['indices']
             params[name] = {}
             params[name]['type'] = vdict['type']
@@ -286,21 +287,21 @@ class BaseTask(object):
                     params[name]['values'].append(vdict['options'][data_vector[ind].argmax(0)])
             else:
                 raise Exception('Unknown parameter type.')
-            
+
         return params
 
     # Converts a dict of params to the corresponding vector in puts space
     def vectorify(self, params):
         v = np.zeros(self.num_dims)
-        for name, param in params.iteritems():
+        for name, param in params.items():
             indices = self.variables_meta[name]['indices']
 
             if param['type'] == 'int' or param['type'] == 'float':
                 v[indices] = param['values']
             elif param['type'] == 'enum':
-                for i,ind in enumerate(indices):
-                    offset           = self.variables_meta[name]['options'].index(param['values'][i])
-                    v[ind[0]+offset] = 1
+                for i, ind in enumerate(indices):
+                    offset = self.variables_meta[name]['options'].index(param['values'][i])
+                    v[ind[0] + offset] = 1
             else:
                 raise Exception('Unknown parameter type.')
 
@@ -312,23 +313,23 @@ class BaseTask(object):
             return np.array([])
 
         if V.ndim == 1:
-            V = V[None,:]
+            V = V[None, :]
             squeeze = True
         else:
             squeeze = False
 
         U = np.zeros(V.shape)
-        for name, variable in self.variables_meta.iteritems():
+        for name, variable in self.variables_meta.items():
             indices = variable['indices']
             if variable['type'] == 'int':
-                vals = V[:,indices]
-                U[:,indices] = self.int_to_unit(vals, variable['min'], variable['max'])
+                vals = V[:, indices]
+                U[:, indices] = self.int_to_unit(vals, variable['min'], variable['max'])
             elif variable['type'] == 'float':
-                vals = V[:,indices]
-                U[:,indices] = self.float_to_unit(vals, variable['min'], variable['max'])
+                vals = V[:, indices]
+                U[:, indices] = self.float_to_unit(vals, variable['min'], variable['max'])
             elif variable['type'] == 'enum':
                 for ind in indices:
-                    U[:,ind] = V[:,ind] # Assumed to already be stored in a 1-hot encoding
+                    U[:, ind] = V[:, ind]  # Assumed to already be stored in a 1-hot encoding
             else:
                 raise Exception("Unknown variable type.")
 
@@ -336,36 +337,40 @@ class BaseTask(object):
             U = np.squeeze(U)
 
         return U
-        
+
     def from_unit(self, U):
         if U.shape[0] == 0:
             return np.array([])
 
         if U.ndim == 1:
-            U = U[None,:]
+            U = U[None, :]
             squeeze = True
         else:
             squeeze = False
 
         V = np.zeros(U.shape)
-        for name, variable in self.variables_meta.iteritems():
+        for name, variable in self.variables_meta.items():
             indices = variable['indices']
             if variable['type'] == 'int':
-                vals = U[:,indices]
-                assert(variable['max'] - variable['min'] > 0.0), 'Your specified min (%f) for the variable %s must be less than the max (%f)' % (variable['min'], name, variable['max'])
-                V[:,indices] = self.unit_to_int(vals, variable['min'], variable['max'])
+                vals = U[:, indices]
+                assert (variable['max'] - variable[
+                    'min'] > 0.0), 'Your specified min (%f) for the variable %s must be less than the max (%f)' % (
+                variable['min'], name, variable['max'])
+                V[:, indices] = self.unit_to_int(vals, variable['min'], variable['max'])
             elif variable['type'] == 'float':
-                vals = U[:,indices]
-                assert(variable['max'] - variable['min'] > 0.0), 'Your specified min (%f) for the variable %s must be less than the max (%f)' % (variable['min'], name, variable['max'])
-                V[:,indices] = self.unit_to_float(vals, variable['min'], variable['max'])
+                vals = U[:, indices]
+                assert (variable['max'] - variable[
+                    'min'] > 0.0), 'Your specified min (%f) for the variable %s must be less than the max (%f)' % (
+                variable['min'], name, variable['max'])
+                V[:, indices] = self.unit_to_float(vals, variable['min'], variable['max'])
             elif variable['type'] == 'enum':
                 for ind in indices:
                     # This is a bit more complicated than to_unit because
                     # the values might come from the unit hypercube, meaning
                     # that U might not have a 1-hot encoding.
-                    v = np.zeros(V[:,ind].shape)
-                    v[np.arange(v.shape[0]),U[:,ind].argmax(1)] = 1
-                    V[:,ind] = v
+                    v = np.zeros(V[:, ind].shape)
+                    v[np.arange(v.shape[0]), U[:, ind].argmax(1)] = 1
+                    V[:, ind] = v
             else:
                 raise Exception("Unknown variable type: %s" % variable['type'])
 
@@ -377,7 +382,7 @@ class BaseTask(object):
     # Convert primitive types to the unit hypercube
     def int_to_unit(self, v, vmin, vmax):
         unit = (np.double(v) - vmin) / (vmax - vmin)
-        
+
         # Make sure we are not over bounds
         try:
             unit[unit > 1] = 1
@@ -391,7 +396,7 @@ class BaseTask(object):
 
     def float_to_unit(self, v, vmin, vmax):
         unit = (np.double(v) - vmin) / (vmax - vmin)
-        
+
         # Make sure we are not over bounds
         try:
             unit[unit > 1] = 1.0
@@ -410,11 +415,10 @@ class BaseTask(object):
 
     # Convert unit hypercube values to primitive types
     def unit_to_int(self, u, vmin, vmax):
-        return vmin + np.int32(np.floor((1-np.finfo(float).eps) * u * np.double(vmax-vmin+1)))
+        return vmin + np.int32(np.floor((1 - np.finfo(float).eps) * u * np.double(vmax - vmin + 1)))
 
     def unit_to_float(self, u, vmin, vmax):
-        return vmin + u * (vmax-vmin)
+        return vmin + u * (vmax - vmin)
 
     def unit_to_enum(self, u, options):
         return options[u.argmax()]
-

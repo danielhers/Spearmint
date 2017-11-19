@@ -184,18 +184,14 @@
 
 import sys
 import os
-import ast
 import numpy        as np
 import numpy.random as npr
 import scipy.linalg as spla
 import scipy.stats  as sps
 
-from spearmint.models                 import GP
-from spearmint.utils.param            import Param as Hyperparameter
-from spearmint.kernels                import Matern, Noise, Scale, SumKernel, TransformKernel
+from spearmint.models import GP
 from spearmint.sampling.slice_sampler import SliceSampler
-from spearmint.utils                  import priors
-from spearmint.transformations        import BetaWarp, IgnoreDims, Linear, Normalization, Transformer
+from spearmint.utils import priors
 
 import spearmint.utils.param      as param_util
 import spearmint.sampling.sampler as sampler
@@ -204,14 +200,14 @@ import copy
 from collections import defaultdict
 
 
-#TODO: The tests below should be converted into proper nosetests.
+# TODO: The tests below should be converted into proper nosetests.
 class DiagnosticGP(GP):
     # The above functions sample the latent function. This is the observation model
     # (i.i.d. Gaussian noise)
     def observation_model(self, y):
         if self.noiseless:
             return y
-        elif type(y) == float or y.size==1:
+        elif type(y) == float or y.size == 1:
             return y + npr.randn() * np.sqrt(self.noise.value)
         else:
             return np.squeeze(y + npr.randn(*y.shape) * np.sqrt(self.noise.value))
@@ -221,7 +217,7 @@ class DiagnosticGP(GP):
     # https://hips.seas.harvard.edu/blog/2013/06/10/testing-mcmc-code-part-2-integration-tests/
     # This test uses an arbitrary statistic of the data (outputs). Here we use the sum.
     def geweke_correctness_test(self):
-        print 'Initiating Geweke Correctness test'
+        print('Initiating Geweke Correctness test')
         # Note: the horseshoe prior on the noise will make the line slightly not straight
         # because we don't have the actual log pdf
 
@@ -230,57 +226,58 @@ class DiagnosticGP(GP):
         # First, check that all priors and models can be sampled from
         for param in self.hypers:
             if not hasattr(param.prior, 'sample'):
-                print 'Prior of param %s cannot be sampled from. Cannot perform the Geweke correctness test.' % param.name
+                print(
+                    'Prior of param %s cannot be sampled from. Cannot perform the Geweke correctness test.' % param.name)
                 return
 
-        n = 10000 # number of samples # n = self.mcmc_iters
+        n = 10000  # number of samples # n = self.mcmc_iters
         statistic_of_interest = np.mean
 
-        true_data = copy.copy(self.data) # reset this at the end
+        true_data = copy.copy(self.data)  # reset this at the end
 
         # Case A: 
-            # 1) Draw new hypers from priors
-            # 2) Draw new data given hypers (**NOT** given hypers and data !!!!)
+        # 1) Draw new hypers from priors
+        # 2) Draw new data given hypers (**NOT** given hypers and data !!!!)
         caseA = np.zeros(n)
-        for i in xrange(n):
+        for i in range(n):
             if i % 1000 == 0:
-                print 'Geweke Part A Sample %d/%d' % (i,n)
+                print('Geweke Part A Sample %d/%d' % (i, n))
             for param in self.hypers:
                 param.sample_from_prior()
-            latent_y = self.sample_from_prior_given_hypers(self.data) # only inputs used
-            
+            latent_y = self.sample_from_prior_given_hypers(self.data)  # only inputs used
+
             # fants = latent_y
             fants = self.observation_model(latent_y)
             # self.noise.print_diagnostics()
-            # print fants
+            # print(fants)
 
             caseA[i] = statistic_of_interest(fants)
 
-        # Case B:
+            # Case B:
             # 1) Resample all hypers one step given data
             # 2) Resample data given hypers
             # repeat a bunch of times
         caseB = np.zeros(n)
-        for i in xrange(n):
+        for i in range(n):
             if i % 1000 == 0:
-                print 'Geweke Part B Sample %d/%d' % (i,n)
+                print('Geweke Part B Sample %d/%d' % (i, n))
             # Take MCMC step on theta given data
-            self.sampler.generate_sample() # data['inputs'] and data['values'] used
+            self.sampler.generate_sample()  # data['inputs'] and data['values'] used
 
             # Resample data
-            latent_y = self.sample_from_prior_given_hypers(self.data) # only data['inputs'] used
+            latent_y = self.sample_from_prior_given_hypers(self.data)  # only data['inputs'] used
 
             # self.data['values'] = latent_y
             self.data['values'] = self.observation_model(latent_y)  # add noise
             # self.noise.print_diagnostics()
-            # print self.data['values']
+            # print(self.data['values'])
 
             caseB[i] = statistic_of_interest(self.data['values'])
-        
-        print np.mean(caseA)
-        print np.std(caseA)
-        print np.mean(caseB)
-        print np.std(caseB)
+
+        print(np.mean(caseA))
+        print(np.std(caseA))
+        print(np.mean(caseB))
+        print(np.std(caseB))
 
         # Then, sort the sets A and B.
         caseA = np.sort(caseA)
@@ -288,10 +285,10 @@ class DiagnosticGP(GP):
 
         # Then for each a in A, take the fraction of B smaller than it. 
         yAxis = np.zeros(n)
-        for i in xrange(n):
+        for i in range(n):
             yAxis[i] = np.sum(caseB < caseA[i]) / float(n)
 
-        xAxis = np.arange(n)/float(n)
+        xAxis = np.arange(n) / float(n)
         # Plot fractional index of a vs this fraction. 
         # Repeat for all a in A so number of points on graph is |A| ( = |B| )
 
@@ -307,37 +304,36 @@ class DiagnosticGP(GP):
         plt.title('Geweke test P-P plot with %d samples' % n)
         plt.savefig('diagnostics/correctness/GewekeCorrectness_%d_samples.pdf' % n)
 
-
         self.data = true_data
 
+
 def test_gp():
+    x = np.linspace(-5, 5, 10)[:, None]  # 10 data points, 1-D
+    xtest = np.linspace(-6, 6, 200)[:, None]
 
-    x     = np.linspace(-5,5,10)[:,None] # 10 data points, 1-D
-    xtest = np.linspace(-6,6,200)[:,None]
-
-    y     = np.sin(x.flatten()) + np.sqrt(1e-3)*np.random.randn(x.shape[0])
+    y = np.sin(x.flatten()) + np.sqrt(1e-3) * np.random.randn(x.shape[0])
     ytest = np.sin(xtest.flatten())
 
-    # print 'Inputs'
-    # print x
-    # print 'Outputs'
-    # print y
+    # print('Inputs')
+    # print(x)
+    # print('Outputs')
+    # print(y)
 
-    data            = {'inputs':x,     'values':y}
-    pred            = {'inputs':xtest, 'values':ytest}
+    data = {'inputs': x, 'values': y}
+    pred = {'inputs': xtest, 'values': ytest}
 
-    options = {'likelihood':'GAUSSIAN', 
-                'mcmc-iters':500, 
-                'burn-in':500, 
-                'verbose':False, 
-                'mcmc-diagnostics':True, 
-                'thinning':0, 
-                'priors': {'mean':{'distribution':'Gaussian', 'parameters':{'mu':0.0, 'sigma':1.0}},
-                         'noise':{'distribution':'Lognormal', 'parameters':{'scale':1.0}},
-                         'amp2' :{'distribution':'Lognormal', 'parameters':{'scale':1.0}} 
-                         }
-            }
-    
+    options = {'likelihood': 'GAUSSIAN',
+               'mcmc-iters': 500,
+               'burn-in': 500,
+               'verbose': False,
+               'mcmc-diagnostics': True,
+               'thinning': 0,
+               'priors': {'mean': {'distribution': 'Gaussian', 'parameters': {'mu': 0.0, 'sigma': 1.0}},
+                          'noise': {'distribution': 'Lognormal', 'parameters': {'scale': 1.0}},
+                          'amp2': {'distribution': 'Lognormal', 'parameters': {'scale': 1.0}}
+                          }
+               }
+
     gp = GP(x.shape[1], **options)
     gp.fit(data)
 
@@ -345,8 +341,8 @@ def test_gp():
 
     # func_m, func_v, grad_m, grad_v = gp.predict(pred, full_cov=False, compute_grad=True)
 
-    # print np.hstack((func_m[:,None], ytest[:,None]))
+    # print(np.hstack((func_m[:,None], ytest[:,None])))
+
 
 if __name__ == '__main__':
     test_gp()
-

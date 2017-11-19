@@ -185,6 +185,7 @@
 
 from abc import ABCMeta, abstractmethod
 
+
 class AbstractDB(object):
     __metaclass__ = ABCMeta
 

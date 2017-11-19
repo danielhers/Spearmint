@@ -186,23 +186,23 @@
 import numpy as np
 
 from .abstract_transformation import AbstractTransformation
-from ..utils                  import priors
-from ..utils.param            import Param as Hyperparameter
+from ..utils import priors
+from ..utils.param import Param as Hyperparameter
 
 
 class Linear(AbstractTransformation):
     def __init__(self, num_dims, weights=None, num_factors=2, name="Linear"):
-        self.name        = name
-        self.num_dims    = num_dims
+        self.name = name
+        self.num_dims = num_dims
         self.num_factors = num_factors if not weights else int(weights.shape[0] / num_dims)
 
         if weights:
-            assert self.num_factors*self.num_dims == weights.shape[0]
+            assert self.num_factors * self.num_dims == weights.shape[0]
         else:
-            default_weights = Hyperparameter( 
-                initial_value = 0.1*np.random.randn(num_dims*num_factors),
-                prior         = priors.Gaussian(0,1),
-                name          = 'weights'
+            default_weights = Hyperparameter(
+                initial_value=0.1 * np.random.randn(num_dims * num_factors),
+                prior=priors.Gaussian(0, 1),
+                name='weights'
             )
 
         self.weights = weights if weights is not None else default_weights
@@ -223,7 +223,3 @@ class Linear(AbstractTransformation):
 
     def backward_pass(self, V):
         return V.dot(self.W.T)
-
-
-
-

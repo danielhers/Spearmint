@@ -182,12 +182,12 @@
 # to enter into this License and Terms of Use on behalf of itself and
 # its Institution.
 
-import copy
-import numpy as np
-
 from collections import defaultdict
 
+import numpy as np
+
 from .abstract_transformation import AbstractTransformation
+
 
 class Transformer(object):
     """
@@ -199,22 +199,23 @@ class Transformer(object):
         self.num_dims = num_dims
 
         self.layer_transformations = []
-        self.layer_inds            = []
-        self.layer_remaining_inds  = []
-        self.layer_output_dims     = []
+        self.layer_inds = []
+        self.layer_remaining_inds = []
+        self.layer_output_dims = []
 
     def add_layer(self, *layer_transformations):
         num_input_dims = self.layer_output_dims[-1] if self.layer_output_dims else self.num_dims
 
         if len(layer_transformations) == 1 and isinstance(layer_transformations[0], AbstractTransformation):
-            assert layer_transformations[0].num_dims == num_input_dims, 'Transformation must have the same number of input dimensions as the transformer layer.'
+            assert layer_transformations[
+                       0].num_dims == num_input_dims, 'Transformation must have the same number of input dimensions as the transformer layer.'
             transformations = layer_transformations
             t_inds = [range(num_input_dims)]
         else:
             transformations, t_inds = zip(*layer_transformations)
 
         self.validate_layer(t_inds)
-        
+
         self.layer_transformations.append(transformations)
         self.layer_inds.append(t_inds)
 
@@ -228,7 +229,7 @@ class Transformer(object):
         output_inds = []
         i = 0
         for ndims in output_dims:
-            output_inds.append(list(np.arange(ndims)+i))
+            output_inds.append(list(np.arange(ndims) + i))
             i += ndims
 
         if len(layer_transformations) == 1:
@@ -248,7 +249,7 @@ class Transformer(object):
 
     def forward_pass(self, inputs):
         assert self.layer_transformations, 'Transformer should contain transformations.'
-        
+
         prev_layer = inputs
         for transformations, t_inds, remaining_inds, output_num_dims in zip(self.layer_transformations,
                                                                             self.layer_inds,
@@ -259,10 +260,10 @@ class Transformer(object):
             i = 0
             for transformation, inds in zip(transformations, t_inds):
                 t_len = transformation.output_num_dims()
-                layer_out[:,i:i+t_len] = transformation.forward_pass(prev_layer[:,inds])
+                layer_out[:, i:i + t_len] = transformation.forward_pass(prev_layer[:, inds])
                 i += t_len
 
-            layer_out[:,i:] = prev_layer[:,remaining_inds]
+            layer_out[:, i:] = prev_layer[:, remaining_inds]
             prev_layer = layer_out
 
         return layer_out
@@ -276,17 +277,14 @@ class Transformer(object):
                 self.layer_remaining_inds,
                 self.layer_output_dims)[::-1]:
 
-            JV = np.zeros(list(V.shape[:-1])+[len([i for inds in t_inds for i in inds]) + len(remaining_inds)])
+            JV = np.zeros(list(V.shape[:-1]) + [len([i for inds in t_inds for i in inds]) + len(remaining_inds)])
             i = 0
             for transformation, inds in zip(transformations, t_inds):
                 t_len = transformation.output_num_dims()
-                JV[...,inds] = transformation.backward_pass(V[...,i:i+t_len])
+                JV[..., inds] = transformation.backward_pass(V[..., i:i + t_len])
                 i += t_len
 
-            JV[...,remaining_inds] = V[...,i:]
+            JV[..., remaining_inds] = V[..., i:]
             V = JV
 
         return JV
-
-        
-        

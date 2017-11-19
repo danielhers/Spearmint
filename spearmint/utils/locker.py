@@ -184,25 +184,25 @@
 
 
 
-import os
-import sys
-import time
-import numpy.random as npr
 import subprocess
+import sys
+
+import numpy.random as npr
+
 
 def safe_delete(filename):
-    cmd  = 'mv "%s" "%s.delete" && rm "%s.delete"' % (filename, filename, 
-                                                      filename)
+    cmd = 'mv "%s" "%s.delete" && rm "%s.delete"' % (filename, filename,
+                                                     filename)
     try:
-        subprocess.check_call(cmd,shell=True)
+        subprocess.check_call(cmd, shell=True)
     except:
         return False
     return True
-    #fail = os.system(cmd)
-    #return not fail
+    # fail = os.system(cmd)
+    # return not fail
+
 
 class Locker:
-
     def __init__(self):
         self.locks = {}
 
@@ -224,17 +224,17 @@ class Locker:
         else:
             cmd = 'ln -s /dev/null "%s.lock" 2> /dev/null' % (filename)
             try:
-                subprocess.check_call(cmd,shell=True)
+                subprocess.check_call(cmd, shell=True)
             except:
                 return False
             self.locks[filename] = 1
             return True
-            #fail = os.system(cmd)
-            #if not fail:
+            # fail = os.system(cmd)
+            # if not fail:
             #    self.locks[filename] = 1
-            #return not fail
+            # return not fail
 
-    #def lock(self, filename):
+    # def lock(self, filename):
     #    if self.locks.has_key(filename):
     #        self.locks[filename] += 1
     #        return True
@@ -247,7 +247,7 @@ class Locker:
 
     def unlock(self, filename):
         if not self.locks.has_key(filename):
-            sys.stderr.write("Trying to unlock not-locked file %s.\n" % 
+            sys.stderr.write("Trying to unlock not-locked file %s.\n" %
                              (filename))
             return True
         if self.locks[filename] == 1:
@@ -259,13 +259,15 @@ class Locker:
         else:
             self.locks[filename] -= 1
             return True
-            
+
     def lock_wait(self, filename):
         while not self.lock(filename):
-            time.sleep(0.1*npr.rand(1))
+            time.sleep(0.1 * npr.rand(1))
+
 
 if __name__ == '__main__':
     import time
+
     locker = Locker()
     locker.lock_wait('test')
     time.sleep(1000)

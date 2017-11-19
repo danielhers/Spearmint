@@ -184,21 +184,24 @@
 
 
 import warnings
+
 import numpy as np
 
 from .abstract_transformation import AbstractTransformation
-from ..utils                  import priors
-from ..utils.param            import Param as Hyperparameter
+from ..utils import priors
+from ..utils.param import Param as Hyperparameter
 
 
 def _kumaraswamy_pdf(x, a, b):
     with np.errstate(divide='ignore'):
-        Px = (a*b*x**(a-1.0))*((1.0-x**a)**(b-1.0))
+        Px = (a * b * x ** (a - 1.0)) * ((1.0 - x ** a) ** (b - 1.0))
     return Px
 
+
 def _kumaraswamy_cdf(x, a, b):
-    Cx = 1.0 - (1.0 - x**a)**b
+    Cx = 1.0 - (1.0 - x ** a) ** b
     return Cx
+
 
 def truncate_inputs(func):
     """
@@ -207,39 +210,42 @@ def truncate_inputs(func):
     Truncates the inputs to lie between 0 and 1 if it doesn't already.
     This is to prevent small rounding errors from making the beta cdf and pdf
     go crazy. If the inputs genuinely lives outside of [0,1] then we obviously
-    don't want to do this, so print out a warning just in case.
+    don't want to do this, so print(out a warning just in case.)
     """
+
     def inner(cls_instance, inputs, *args):
         inputs = inputs.copy()
         if np.any(inputs < 0):
-            warnings.warn('KumarWarp encountered negative values: %s' % inputs[inputs<0])
-            inputs[inputs<0] = 0.0
+            warnings.warn('KumarWarp encountered negative values: %s' % inputs[inputs < 0])
+            inputs[inputs < 0] = 0.0
         if np.any(inputs > 1):
-            warnings.warn('KumarWarp encountered values above 1: %s' % inputs[inputs>1])
-            inputs[inputs>1] = 1.0
+            warnings.warn('KumarWarp encountered values above 1: %s' % inputs[inputs > 1])
+            inputs[inputs > 1] = 1.0
 
         return func(cls_instance, inputs, *args)
+
     return inner
+
 
 class KumarWarp(AbstractTransformation):
     def __init__(self, num_dims, alpha=None, beta=None, name="BetaWarp"):
-        self.name     = name
+        self.name = name
         self.num_dims = num_dims
 
         default_alpha = Hyperparameter(
-            initial_value = np.ones(num_dims),
-            prior         = priors.LognormalTophat(1.5,0.1,10),
-            name          = 'kumar_alpha'
+            initial_value=np.ones(num_dims),
+            prior=priors.LognormalTophat(1.5, 0.1, 10),
+            name='kumar_alpha'
         )
 
         default_beta = Hyperparameter(
-            initial_value = np.ones(num_dims),
-            prior         = priors.LognormalTophat(1.5,0.1,10),
-            name          = 'kumar_beta'
+            initial_value=np.ones(num_dims),
+            prior=priors.LognormalTophat(1.5, 0.1, 10),
+            name='kumar_beta'
         )
 
-        self.alpha  = alpha if alpha is not None else default_alpha
-        self.beta   = beta if beta is not None else default_beta
+        self.alpha = alpha if alpha is not None else default_alpha
+        self.beta = beta if beta is not None else default_beta
 
         assert self.alpha.value.shape[0] == self.num_dims and self.beta.value.shape[0] == self.num_dims
 
@@ -251,7 +257,7 @@ class KumarWarp(AbstractTransformation):
     def forward_pass(self, inputs):
         self._inputs = inputs
         x = _kumaraswamy_cdf(inputs, self.alpha.value, self.beta.value)
-        assert(np.all(np.isfinite(x)))
+        assert (np.all(np.isfinite(x)))
 
         return x
 
@@ -259,4 +265,4 @@ class KumarWarp(AbstractTransformation):
         dx = _kumaraswamy_pdf(self._inputs, self.alpha.value, self.beta.value)
         dx[np.logical_not(np.isfinite(dx))] = 1.0
 
-        return dx*V
+        return dx * V

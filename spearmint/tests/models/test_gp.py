@@ -187,8 +187,10 @@ import numpy.random as npr
 
 from spearmint.models import GP
 
+
 def test_gp_init():
     gp = GP(5)
+
 
 def test_fit():
     npr.seed(1)
@@ -197,11 +199,11 @@ def test_fit():
     D = 5
 
     gp = GP(D, burnin=5)
-    
-    inputs  = npr.rand(N,D)
-    pending = npr.rand(3,D)
-    W       = npr.randn(D,1)
-    vals    = inputs.dot(W).flatten() + np.sqrt(1e-3)*npr.randn(N)
+
+    inputs = npr.rand(N, D)
+    pending = npr.rand(3, D)
+    W = npr.randn(D, 1)
+    vals = inputs.dot(W).flatten() + np.sqrt(1e-3) * npr.randn(N)
 
     gp.fit(inputs, vals, pending)
 
@@ -211,45 +213,46 @@ def test_fit():
     assert len(gp._hypers_list) == 10
     assert len(gp._fantasy_values_list) == 10
 
+
 def test_predict():
     npr.seed(1)
 
-    N     = 10
+    N = 10
     Npend = 3
     Ntest = 2
-    D     = 5
+    D = 5
 
-    gp   = GP(D, burnin=5, num_fantasies=7)
-    pred = npr.rand(Ntest,D)
+    gp = GP(D, burnin=5, num_fantasies=7)
+    pred = npr.rand(Ntest, D)
 
     # Test with 0 points
     mu, v = gp.predict(pred)
     np.testing.assert_allclose(mu, 0, rtol=1e-7, atol=0, err_msg='', verbose=True)
-    np.testing.assert_allclose(v, 1+1e-6, rtol=1e-7, atol=0, err_msg='', verbose=True)
+    np.testing.assert_allclose(v, 1 + 1e-6, rtol=1e-7, atol=0, err_msg='', verbose=True)
 
-    #Test with 1 point
-    X   = np.zeros((1,D))
-    W   = npr.randn(D,1)
-    val = X.dot(W).flatten() + np.sqrt(1e-3)*npr.randn()
+    # Test with 1 point
+    X = np.zeros((1, D))
+    W = npr.randn(D, 1)
+    val = X.dot(W).flatten() + np.sqrt(1e-3) * npr.randn()
 
     gp.fit(X, val, fit_hypers=False)
 
     mu, v = gp.predict(pred)
-    
+
     # Points closer to the origin will have less variance
     if np.linalg.norm(pred[0] - X) < np.linalg.norm(pred[1] - X):
         assert v[0] < v[1]
     else:
         assert v[0] > v[1]
-    
+
     # Predict at the point itself
     mu, v = gp.predict(X)
     np.testing.assert_allclose(mu, val, rtol=1e-5, atol=0, err_msg='', verbose=True)
 
     # Now let's make sure it doesn't break with more data and pending
-    inputs  = npr.rand(N,D)
-    vals    = inputs.dot(W).flatten() + np.sqrt(1e-3)*npr.randn(N)
-    pending = npr.rand(Npend,D)
+    inputs = npr.rand(N, D)
+    vals = inputs.dot(W).flatten() + np.sqrt(1e-3) * npr.randn(N)
+    pending = npr.rand(Npend, D)
 
     gp.fit(inputs, vals, pending)
 
@@ -261,20 +264,18 @@ def test_predict():
     mu, v, dmu, dv = gp.predict(pred, compute_grad=True)
 
     # The implied loss is np.sum(mu**2) + np.sum(v**2)
-    dloss = 2*(dmu*mu[:,np.newaxis,:]).sum(2) + 2*(v[:,np.newaxis,np.newaxis]*dv).sum(2)
+    dloss = 2 * (dmu * mu[:, np.newaxis, :]).sum(2) + 2 * (v[:, np.newaxis, np.newaxis] * dv).sum(2)
 
     dloss_est = np.zeros(dloss.shape)
-    for i in xrange(Ntest):
-        for j in xrange(D):
-            pred[i,j] += eps
+    for i in range(Ntest):
+        for j in range(D):
+            pred[i, j] += eps
             mu, v = gp.predict(pred)
-            loss_1 = np.sum(mu**2) + np.sum(v**2)
-            pred[i,j] -= 2*eps
+            loss_1 = np.sum(mu ** 2) + np.sum(v ** 2)
+            pred[i, j] -= 2 * eps
             mu, v = gp.predict(pred)
-            loss_2 = np.sum(mu**2) + np.sum(v**2)
-            pred[i,j] += eps
-            dloss_est[i,j] = ((loss_1 - loss_2) / (2*eps))
+            loss_2 = np.sum(mu ** 2) + np.sum(v ** 2)
+            pred[i, j] += eps
+            dloss_est[i, j] = ((loss_1 - loss_2) / (2 * eps))
 
     assert np.linalg.norm(dloss - dloss_est) < 1e-6
-
-

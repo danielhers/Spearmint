@@ -182,9 +182,8 @@
 # to enter into this License and Terms of Use on behalf of itself and
 # its Institution.
 
-import numpy as np
-
 from abc import ABCMeta, abstractmethod
+
 
 class AbstractKernel(object):
     __metaclass__ = ABCMeta
@@ -208,6 +207,3 @@ class AbstractKernel(object):
     @abstractmethod
     def cross_cov_grad_data(self, inputs_1, inputs_2):
         pass
-
-
-

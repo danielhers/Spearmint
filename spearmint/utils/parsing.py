@@ -183,14 +183,9 @@
 # its Institution.
 
 
-import re
-import numpy        as np
-import numpy.random as npr
-import math
-import sys
 import os
-import json
-
+import re
+import sys
 
 
 # For converting a string of args into a dict of args
@@ -202,13 +197,14 @@ def unpack_args(str):
                         re.compile("\s*,\s*").split(str)))
     else:
         return {}
-            
+
+
 # For parsing the input arguments to a Chooser. 
 # "argTypes" is a dict with keys of argument names and
 # values of tuples with the (argType, argDefaultValue)
 # args is the dict of arguments passd in by the used
 def parse_args(argTypes, args):
-    opt = dict() # "options"
+    opt = dict()  # "options"
     for arg in argTypes:
         if arg in args:
             try:
@@ -218,12 +214,11 @@ def parse_args(argTypes, args):
                 sys.stderr.write("Cannot parse user-specified value %s of argument %s" % (args[arg], arg))
         else:
             opt[arg] = argTypes[arg][1]
- 
+
     return opt
 
 
 def parse_db_address(cfg):
-    
     db_address = os.getenv('SPEARMINT_DB_ADDRESS')
     if db_address is None:
         if 'database' in cfg and 'address' in cfg['database']:
@@ -232,4 +227,3 @@ def parse_db_address(cfg):
             db_address = 'localhost'
 
     return db_address
-

@@ -186,15 +186,10 @@
 
 # Product covariance.  This covariance (kernel) is the elementwise product
 # of multiple different covariance functions.
-import sys
 import numpy as np
-import priors
-import kernel_utils
-import scipy.stats as sps
-import warnings
-import scipy.special as spe
-import logging
-#warnings.filterwarnings("ignore", category=RuntimeWarning)
+
+
+# warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 class productCov:
     def __init__(self, num_dimensions, **kwargs):
@@ -207,7 +202,7 @@ class productCov:
 
         # This indexes the dimensions on which each kernel operates
         self.dim_indices = kwargs.get('dim_indices', list())
-        
+
     def kernel(self, x1, x2=None, grad=False):
         if x2 is None:
             x2 = x1
@@ -217,22 +212,22 @@ class productCov:
             Ks = list()
             dKs = list()
             cov_grad = np.zeros((x1.shape[0], 1, x2.shape[1]))
-            for i in xrange(len(self.kernels)):
-                (K, dK) = self.kernels[i].kernel(x1[:,self.dim_indices[i]],
-                                                 x2[:,self.dim_indices[i]],
+            for i in range(len(self.kernels)):
+                (K, dK) = self.kernels[i].kernel(x1[:, self.dim_indices[i]],
+                                                 x2[:, self.dim_indices[i]],
                                                  grad)
                 Ks.append(K)
                 dKs.append(dK)
                 cov = cov * K
 
-            for i in xrange(len(self.kernels)):
+            for i in range(len(self.kernels)):
                 cov_grad[:, :, self.dim_indices[i]] = (cov_grad[:, :, self.dim_indices[i]] +
-                                                       dKs[i] * (cov / Ks[i])[:,:,np.newaxis])
+                                                       dKs[i] * (cov / Ks[i])[:, :, np.newaxis])
             return (cov, cov_grad)
         else:
-            for i in xrange(len(self.kernels)):
-                cov = cov * self.kernels[i].kernel(x1[:,self.dim_indices[i]],
-                                                   x2[:,self.dim_indices[i]],
+            for i in range(len(self.kernels)):
+                cov = cov * self.kernels[i].kernel(x1[:, self.dim_indices[i]],
+                                                   x2[:, self.dim_indices[i]],
                                                    grad)
         return cov
 

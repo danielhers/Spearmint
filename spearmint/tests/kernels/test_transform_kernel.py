@@ -185,45 +185,43 @@
 import numpy        as np
 import numpy.random as npr
 
-from spearmint.kernels         import Matern52, TransformKernel
+from spearmint.kernels import Matern52, TransformKernel
 from spearmint.transformations import BetaWarp, Normalization, Linear, Transformer
+
 
 def test_grad():
     npr.seed(1)
 
     eps = 1e-5
-    N   = 10
-    M   = 5
-    D   = 5
+    N = 10
+    M = 5
+    D = 5
 
-    beta_warp   = BetaWarp(2)
-    norm        = Normalization(2)
-    lin         = Linear(D)
+    beta_warp = BetaWarp(2)
+    norm = Normalization(2)
+    lin = Linear(D)
     transformer = Transformer(D)
     # Each entry is a tuple, (transformation, indices_it_acts_on)
-    transformer.add_layer((beta_warp,[0,2]), (norm, [1,4])) # This is crazy. We would never do this.
+    transformer.add_layer((beta_warp, [0, 2]), (norm, [1, 4]))  # This is crazy. We would never do this.
     # One transformation means apply to all dimensions.
     transformer.add_layer(lin)
 
     kernel = TransformKernel(Matern52(lin.num_factors), transformer)
 
-    data1 = npr.rand(N,D)
-    data2 = npr.rand(M,D)
+    data1 = npr.rand(N, D)
+    data2 = npr.rand(M, D)
 
-    loss  = np.sum(kernel.cross_cov(data1, data2))
+    loss = np.sum(kernel.cross_cov(data1, data2))
     dloss = kernel.cross_cov_grad_data(data1, data2).sum(0)
-    
+
     dloss_est = np.zeros(dloss.shape)
-    for i in xrange(M):
-        for j in xrange(D):
-            data2[i,j] += eps
+    for i in range(M):
+        for j in range(D):
+            data2[i, j] += eps
             loss_1 = np.sum(kernel.cross_cov(data1, data2))
-            data2[i,j] -= 2*eps
+            data2[i, j] -= 2 * eps
             loss_2 = np.sum(kernel.cross_cov(data1, data2))
-            data2[i,j] += eps
-            dloss_est[i,j] = ((loss_1 - loss_2) / (2*eps))
+            data2[i, j] += eps
+            dloss_est[i, j] = ((loss_1 - loss_2) / (2 * eps))
 
     assert np.linalg.norm(dloss - dloss_est) < 1e-6
-
-
-

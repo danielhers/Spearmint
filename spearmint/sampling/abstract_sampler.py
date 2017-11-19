@@ -192,15 +192,15 @@ class AbstractSampler(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, *params_to_sample, **sampler_options):
-        self.params          = params_to_sample
+        self.params = params_to_sample
         self.sampler_options = sampler_options
-        self.current_ll      = None
+        self.current_ll = None
 
         # Note: thinning is currently implemented such that each sampler does its thinning
         # We could also do a different type of thinning, implemented in SamplerCollection,
         # where all samplers produce a sample, and then you thin (ABABAB rather than AAABBB)
-        self.thinning_overrideable = not sampler_options.has_key('thinning') # Thinning can be overrided if True
-        self.thinning              = sampler_options.get('thinning', 0)
+        self.thinning_overrideable = not sampler_options.has_key('thinning')  # Thinning can be overrided if True
+        self.thinning = sampler_options.get('thinning', 0)
 
     @abstractmethod
     def logprob(self, x, model):

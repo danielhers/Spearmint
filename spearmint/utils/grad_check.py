@@ -183,13 +183,10 @@
 # its Institution.
 
 
-import re
-import numpy        as np
-import numpy.random as npr
-import math
 import sys
 
-
+import numpy        as np
+import numpy.random as npr
 
 
 # Check the gradients of function "fun" at location(s) "test_x"
@@ -203,10 +200,10 @@ import sys
 def check_grad(fun, test_x, error_tol=1e-3, delta=1e-5, verbose=False, fun_args=[]):
     if verbose:
         sys.stderr.write('Checking gradients...\n')
-        
+
     state_before_checking = npr.get_state()
-    fixed_seed = 5      # arbitrary
-    
+    fixed_seed = 5  # arbitrary
+
     npr.seed(fixed_seed)
     analytical_grad = fun(test_x, *fun_args)[1]
     D = test_x.shape[1] if test_x.ndim > 1 else test_x.size
@@ -218,15 +215,15 @@ def check_grad(fun, test_x, error_tol=1e-3, delta=1e-5, verbose=False, fun_args=
         forward_val = fun(test_x + unit_vector, *fun_args)[0]
         npr.seed(fixed_seed)
         backward_val = fun(test_x - unit_vector, *fun_args)[0]
-        grad_check_i = (forward_val - backward_val)/(2*delta)
+        grad_check_i = (forward_val - backward_val) / (2 * delta)
         if test_x.ndim > 1:
-            grad_check[:,i] = grad_check_i
+            grad_check[:, i] = grad_check_i
         else:
             grad_check[i] = grad_check_i
     grad_diff = grad_check - analytical_grad
-    err = np.sqrt(np.sum(grad_diff**2))
+    err = np.sqrt(np.sum(grad_diff ** 2))
 
-    if verbose:        
+    if verbose:
         sys.stderr.write('Analytical grad: %s\n' % str(analytical_grad))
         sys.stderr.write('Estimated grad:  %s\n' % str(grad_check))
         sys.stderr.write('L2-norm of gradient error = %g\n' % err)
@@ -234,4 +231,3 @@ def check_grad(fun, test_x, error_tol=1e-3, delta=1e-5, verbose=False, fun_args=
     npr.set_state(state_before_checking)
 
     return err < error_tol
-

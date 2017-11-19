@@ -182,23 +182,26 @@
 # to enter into this License and Terms of Use on behalf of itself and
 # its Institution.
 
-import spearmint
-from abstract_scheduler import AbstractScheduler
 import os
 import subprocess
 import sys
 
+import spearmint
+from spearmint.schedulers.abstract_scheduler import AbstractScheduler
+
+
 def init(*args, **kwargs):
     return LocalScheduler(*args, **kwargs)
+
 
 class LocalScheduler(AbstractScheduler):
     """scheduler which submits jobs to the local machine via a shell command"""
 
     def submit(self, job_id, experiment_name, experiment_dir, database_address):
         base_path = os.path.dirname(os.path.realpath(spearmint.__file__))
-        cmd = ('python %s/launcher.py --database-address %s --experiment-name %s --job-id %s' % 
+        cmd = ('python %s/launcher.py --database-address %s --experiment-name %s --job-id %s' %
                (base_path, database_address, experiment_name, job_id))
-        
+
         output_directory = os.path.join(experiment_dir, 'output')
         if not os.path.isdir(output_directory):
             os.mkdir(output_directory)
@@ -212,20 +215,19 @@ class LocalScheduler(AbstractScheduler):
         output_filename = os.path.join(output_directory, '%08d.out' % job_id)
         output_file = open(output_filename, 'w')
 
-        process = subprocess.Popen(cmd, stdout=output_file, 
-                                        stderr=output_file, 
-                                        shell=True)
+        process = subprocess.Popen(cmd, stdout=output_file,
+                                   stderr=output_file,
+                                   shell=True)
 
         process.poll()
         if process.returncode is not None and process.returncode < 0:
             sys.stderr.write("Failed to submit job or job crashed "
                              "with return code %d !\n" % process.returncode)
             return None
-        # else:
+            # else:
             # sys.stderr.write("Submitted job as process: %d\n" % process.pid)
 
         return process.pid
-        
 
     def alive(self, process_id):
         try:
@@ -236,4 +238,3 @@ class LocalScheduler(AbstractScheduler):
             return False
         else:
             return True
-

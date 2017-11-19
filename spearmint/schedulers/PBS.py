@@ -183,14 +183,16 @@
 # its Institution.
 
 import sys
-import spearmint
-from cluster_scheduler import AbstractClusterScheduler
+
 # Torque PBS scheduler python code from: https://oss.trac.surfsara.nl/pbs_python/
 import pbs
 from PBSQuery import PBSQuery
+from cluster_scheduler import AbstractClusterScheduler
+
 
 def init(*args, **kwargs):
     return PBSScheduler(*args, **kwargs)
+
 
 # This scheduler is written specifically for the NERSC Babbage cluster,
 # but can serve as an example for Torque queueing systems
@@ -205,7 +207,7 @@ class PBSScheduler(AbstractClusterScheduler):
     def submit_command(self, output_file, job_name):
         # Note for posterity: ssh bint01 "source BLAH && qsub BLAH" doesn't work
         return """ssh bint01 "/usr/syscom/nsg/opt/torque/4.2.6/bin/qsub -S /bin/bash -N %s -e %s -o %s -j oe" """ % \
-        (job_name, output_file, output_file)
+               (job_name, output_file, output_file)
         # ' '.join(['ssh', 'bint01', '"qsub', '-S', '/bin/bash',
         #            '-N', "%s" % (job_name),
         #            '-e', output_file,
@@ -216,7 +218,7 @@ class PBSScheduler(AbstractClusterScheduler):
     def alive(self, process_id):
         alive = False
         try:
-            status = self.pbsquery.getjob(str(process_id))['job_state'][0]            
+            status = self.pbsquery.getjob(str(process_id))['job_state'][0]
         except:
             # job not found
             status = -1
@@ -229,7 +231,7 @@ class PBSScheduler(AbstractClusterScheduler):
         elif status == 'R':
             sys.stderr.write("Job %d is running.\n" % (process_id))
             alive = True
-        elif status in ['H','S']:
+        elif status in ['H', 'S']:
             sys.stderr.write("Job %d is held or suspended.\n" % (process_id))
             alive = False
 
@@ -237,7 +239,7 @@ class PBSScheduler(AbstractClusterScheduler):
             try:
                 # Kill the job.
                 c = pbs.pbs_connect(pbs.pbs_default())
-                result = pbs.pbs_deljob(c, str(process_id))                    
+                result = pbs.pbs_deljob(c, str(process_id))
                 sys.stderr.write("Killed job %d.\n" % (process_id))
             except:
                 sys.stderr.write("Failed to kill job %d.\n" % (process_id))

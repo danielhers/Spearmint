@@ -183,26 +183,26 @@
 # its Institution.
 
 
+import multiprocessing
 import sys
+from collections import defaultdict
+
 import numpy          as np
 import numpy.random   as npr
 import scipy.optimize as spo
-import multiprocessing
 
-from collections import defaultdict
-
-from .acquisition_functions  import compute_ei
-from ..utils.grad_check      import check_grad
-from ..grids                 import sobol_grid
+from .acquisition_functions import compute_ei
+from .. import models
+from ..grids import sobol_grid
 from ..models.abstract_model import function_over_hypers
-from ..                      import models
+from ..utils.grad_check import check_grad
 
-DEFAULT_GRIDSIZE  = 20000
-DEFAULT_GRIDSEED  = 0
+DEFAULT_GRIDSIZE = 20000
+DEFAULT_GRIDSEED = 0
 DEFAULT_NUMDESIGN = 2
 
-DEFAULT_NUMSPRAY  = 10
-DEFAULT_SPRAYSTD  = 1e-3
+DEFAULT_NUMSPRAY = 10
+DEFAULT_SPRAYSTD = 1e-3
 
 VERBOSE = False
 
@@ -222,6 +222,7 @@ class DefaultChooser(object):
     objective : dict
         ?
     """
+
     def __init__(self, options):
         self.grid_size = options.get('grid_size', DEFAULT_GRIDSIZE)
         self.grid_seed = options.get('grid_seed', DEFAULT_GRIDSEED)
@@ -236,11 +237,11 @@ class DefaultChooser(object):
         else:
             self.parallel_opt = False
 
-        self.models      = {}
-        self.objective   = {}
+        self.models = {}
+        self.objective = {}
         self.constraints = defaultdict(dict)
-        self.grid        = None
-        self.task_group  = None
+        self.grid = None
+        self.task_group = None
         self.isFit = False
 
     def fit(self, task_group, hypers=None, options=None):
@@ -251,16 +252,16 @@ class DefaultChooser(object):
         task_goup : object of type TaskGroup
         """
         self.task_group = task_group
-        self.num_dims   = task_group.num_dims
-        new_hypers      = {}
+        self.num_dims = task_group.num_dims
+        new_hypers = {}
 
         # Create the grid of optimization initializers
         # Need to do it here because it's used in many places e.g. best
-        self.grid = sobol_grid.generate(self.num_dims, grid_size=self.grid_size, 
+        self.grid = sobol_grid.generate(self.num_dims, grid_size=self.grid_size,
                                         grid_seed=self.grid_seed)
 
         # A useful hack: add previously visited points to the grid
-        for task_name, task in task_group.tasks.iteritems():
+        for task_name, task in task_group.tasks.items():
             if task.has_valid_inputs():
                 self.grid = np.append(self.grid, task.valid_normalized_data_dict['inputs'], axis=0)
             if task.has_pending():
@@ -272,11 +273,11 @@ class DefaultChooser(object):
 
         hypers = hypers if hypers is not None else defaultdict(dict)
 
-        # print 'Fittings tasks: %s' % str(task_group.tasks.keys())
+        # print('Fittings tasks: %s' % str(task_group.tasks.keys()))
 
-        for task_name, task in task_group.tasks.iteritems():
+        for task_name, task in task_group.tasks.items():
             if task.type.lower() == 'objective':
-                data_dict = self.objective # confusing: this is how self.objective gets populated
+                data_dict = self.objective  # confusing: this is how self.objective gets populated
             elif task.type.lower() == 'constraint':
                 self.constraints[task_name] = {}
                 data_dict = self.constraints[task_name]
@@ -284,18 +285,19 @@ class DefaultChooser(object):
                 raise Exception('Unknown task type.')
 
             data_dict['num_dims'] = task_group.num_dims
-            data_dict['name']     = task_name
+            data_dict['name'] = task_name
             data_dict.update(task.valid_normalized_data_dict)
 
-            # print 'Task %s (%s %s): found %d value%s' % (task_name, 
+            # print('Task %s (%s %s): found %d value%s' % (task_name, )
             #     task.options['likelihood'].lower(), task.type.lower(), 
             #     data_dict['inputs'].shape[0], 's' if data_dict['inputs'].shape[0] != 1 else '')
 
             if task.valid_values.shape[0] >= DEFAULT_NUMDESIGN:
                 # Add the valid data from the task to the data_dict
 
-                default_model = 'GP' if task.options['likelihood'].lower() in ['gaussian', 'noiseless'] else 'GPClassifier'
-                model_class   = task.options.get('model', default_model)
+                default_model = 'GP' if task.options['likelihood'].lower() in ['gaussian',
+                                                                               'noiseless'] else 'GPClassifier'
+                model_class = task.options.get('model', default_model)
 
                 self.models[task_name] = getattr(models, model_class)(task_group.num_dims, **task.options)
 
@@ -327,17 +329,17 @@ class DefaultChooser(object):
             self.task_group.paramify_and_print(suggestion.flatten(), left_indent=16)
             return suggestion
 
-        # print 'inputs: %s' % self.objective['inputs']
-        # if self.objective.has_key('pending'):
-            # print 'pending: %s' % self.objective['pending']
+            # print('inputs: %s' % self.objective['inputs'])
+            # if self.objective.has_key('pending'):
+            # print('pending: %s' % self.objective['pending'])
 
         # Compute the current best
         current_best, current_best_location = self.best()
 
         # Add some extra candidates around the best so far (a useful hack)
-        spray_points = npr.randn(self.num_spray, self.num_dims)*self.spray_std + current_best_location
-        spray_points = np.minimum(np.maximum(spray_points,0.0),1.0)
-        
+        spray_points = npr.randn(self.num_spray, self.num_dims) * self.spray_std + current_best_location
+        spray_points = np.minimum(np.maximum(spray_points, 0.0), 1.0)
+
         # Compute EI on the grid
         grid_pred = np.vstack((self.grid, spray_points))
         grid_ei = self.acquisition_function_over_hypers(grid_pred, current_best, compute_grad=False)
@@ -348,32 +350,32 @@ class DefaultChooser(object):
 
         # The index and value of the top grid point
         best_grid_ind = np.argmax(grid_ei)
-        best_grid_ei  = grid_ei[best_grid_ind]
-        
+        best_grid_ei = grid_ei[best_grid_ind]
+
         if VERBOSE:
-            print 'Best EI before optimization: %f' % best_grid_ei
+            print('Best EI before optimization: %f' % best_grid_ei)
 
         if self.check_grad:
-            check_grad(lambda x: self.acq_optimize_wrapper(x, current_best, True), 
-                best_grid_pred[0], verbose=True)
+            check_grad(lambda x: self.acq_optimize_wrapper(x, current_best, True),
+                       best_grid_pred[0], verbose=True)
 
         # Optimize the top points from the grid to get better points
         cand = []
-        b = [(0,1)]*best_grid_pred.shape[1]# optimization bounds
+        b = [(0, 1)] * best_grid_pred.shape[1]  # optimization bounds
 
         if self.parallel_opt:
             # Optimize each point in parallel
             pool = multiprocessing.Pool(self.grid_subset)
-            results = [pool.apply_async(self.optimize_pt,args=(
-                    c,b,current_best,True)) for c in best_grid_pred]
+            results = [pool.apply_async(self.optimize_pt, args=(
+                c, b, current_best, True)) for c in best_grid_pred]
 
             for res in results:
                 cand.append(res.get(1e8))
             pool.close()
-        else: 
+        else:
             # Optimize in series
             for c in best_grid_pred:
-                cand.append(self.optimize_pt(c,b,current_best,compute_grad=True))
+                cand.append(self.optimize_pt(c, b, current_best, compute_grad=True))
         # Cand now stores the optimized points
 
         # Compute one more time (re-computing is unnecessary, oh well... TODO)
@@ -381,14 +383,14 @@ class DefaultChooser(object):
         opt_ei = self.acquisition_function_over_hypers(cand, current_best, compute_grad=False)
 
         # The index and value of the top optimized point
-        best_opt_ind  = np.argmax(opt_ei)
-        best_opt_ei   = opt_ei[best_opt_ind]
+        best_opt_ind = np.argmax(opt_ei)
+        best_opt_ei = opt_ei[best_opt_ind]
 
         # Optimization should always be better unless the optimization
         # breaks in some way.
         if VERBOSE:
-            print 'Best EI after  optimization: %f' % best_opt_ei
-            print 'Suggested input %s' % cand[best_opt_ind]
+            print('Best EI after  optimization: %f' % best_opt_ei)
+            print('Suggested input %s' % cand[best_opt_ind])
 
         if best_opt_ei >= best_grid_ei:
             suggestion = cand[best_opt_ind]
@@ -417,7 +419,7 @@ class DefaultChooser(object):
             obj_mean, obj_var = obj_model.function_over_hypers(obj_model.predict, grid)
 
             # find the min and argmin of the GP mean
-            current_best_location = grid[np.argmin(obj_mean),:][None]
+            current_best_location = grid[np.argmin(obj_mean), :][None]
             best_ind = np.argmin(obj_mean)
             current_best_value = obj_mean[best_ind]
             std_at_best = np.sqrt(obj_var[best_ind])
@@ -428,15 +430,15 @@ class DefaultChooser(object):
 
             # Print out the minimum according to the model
             sys.stderr.write('\nMinimum expected objective value under model '
-                'is %.5f (+/- %.5f), at location:\n' % (unnormalized_best_value, unnormalized_std_at_best))
-            self.task_group.paramify_and_print(self.task_group.from_unit(current_best_location).flatten(), 
+                             'is %.5f (+/- %.5f), at location:\n' % (unnormalized_best_value, unnormalized_std_at_best))
+            self.task_group.paramify_and_print(self.task_group.from_unit(current_best_location).flatten(),
                                                left_indent=16, indent_top_row=True)
 
             # Compute the best value seen so far
             vals = self.task_group.values[self.objective['name']]
             inps = self.task_group.inputs
             best_observed_value = np.min(vals)
-            best_observed_location = inps[np.argmin(vals),:][None]
+            best_observed_location = inps[np.argmin(vals), :][None]
 
             # Don't need to un-normalize inputs here because these are the raw inputs
             sys.stderr.write('\nMinimum of observed values is %f, at location:\n' % best_observed_value)
@@ -445,20 +447,21 @@ class DefaultChooser(object):
         else:
 
             mc = self.probabilistic_constraint(grid)
-            if not np.any(mc): 
+            if not np.any(mc):
                 # P-con is violated everywhere
                 # Compute the product of the probabilities, and return None for the current best value
-                probs = reduce(lambda x,y:x*y, [self.confidence(c, grid) for c in self.constraints], np.ones(grid.shape[0]))
+                probs = reduce(lambda x, y: x * y, [self.confidence(c, grid) for c in self.constraints],
+                               np.ones(grid.shape[0]))
                 best_probs_ind = np.argmax(probs)
-                best_probs_location = grid[best_probs_ind,:][None]
+                best_probs_location = grid[best_probs_ind, :][None]
                 # TODO -- could use BFGS for this (unconstrained) optimization as well -- everytime for min of mean
 
                 sys.stderr.write('\nNo feasible region found (yet).\n')
                 sys.stderr.write('Maximum probability of satisfying constraints = %f\n' % np.max(probs))
                 sys.stderr.write('At location:    ')
-                self.task_group.paramify_and_print(self.task_group.from_unit(best_probs_location).flatten(), 
+                self.task_group.paramify_and_print(self.task_group.from_unit(best_probs_location).flatten(),
                                                    left_indent=16)
-                
+
                 return None, best_probs_location
 
             # A feasible region has been found
@@ -468,39 +471,43 @@ class DefaultChooser(object):
             valid_mean = mean[mc]
             valid_var = var[mc]
             best_ind = np.argmin(valid_mean)
-            current_best_location = (grid[mc])[best_ind,:][None]
+            current_best_location = (grid[mc])[best_ind, :][None]
             ind = np.argmin(valid_mean)
             current_best_value = valid_mean[ind]
             std_at_best = np.sqrt(valid_var[ind])
 
             unnormalized_best = obj_task.unstandardize_mean(obj_task.unstandardize_variance(current_best_value))
-            unnormalized_std_at_best = obj_task.unstandardize_variance(std_at_best) # not used -- not quite
+            unnormalized_std_at_best = obj_task.unstandardize_variance(std_at_best)  # not used -- not quite
             # right to report this -- i mean there is uncertainty in the constraints too
             # this is the variance at that location, not the standard deviation of the minimum... 
             # not sure if this distinction is a big deal
 
-            sys.stderr.write('\nMinimum expected objective value satisfying constraints w/ high prob: %f\n' % unnormalized_best)
+            sys.stderr.write(
+                '\nMinimum expected objective value satisfying constraints w/ high prob: %f\n' % unnormalized_best)
             sys.stderr.write('At location:    ')
-            self.task_group.paramify_and_print(self.task_group.from_unit(current_best_location).flatten(), left_indent=16)
+            self.task_group.paramify_and_print(self.task_group.from_unit(current_best_location).flatten(),
+                                               left_indent=16)
 
             # Compute the best value seen so far
             with np.errstate(invalid='ignore'):
-                all_constraints_satisfied = np.all(np.greater(np.array([x.values for x in self.task_group.tasks.values()]), 0), axis=0)
+                all_constraints_satisfied = np.all(
+                    np.greater(np.array([x.values for x in self.task_group.tasks.values()]), 0), axis=0)
             if not np.any(all_constraints_satisfied):
                 sys.stderr.write('No observed result satisfied all constraints.\n')
             else:
                 inps = self.task_group.inputs
                 vals = self.task_group.values[self.objective['name']]
                 # get rid of those that violate constraints
-                vals[np.logical_not(all_constraints_satisfied)] = np.max(vals)            
+                vals[np.logical_not(all_constraints_satisfied)] = np.max(vals)
                 # get rid of NaNs -- set them to biggest not-nan value, then they won't be the minimum
                 vals[np.isnan(vals)] = np.max(vals[np.logical_not(np.isnan(vals))])
                 best_observed_value = np.min(vals)
-                best_observed_location = inps[np.argmin(vals),:][None]
+                best_observed_location = inps[np.argmin(vals), :][None]
                 # Don't need to un-normalize inputs here because these are the raw inputs
-                sys.stderr.write('\nBest observed values satisfying constraints is %f, at location:\n' % best_observed_value)
-                self.task_group.paramify_and_print(best_observed_location.flatten(), left_indent=16, indent_top_row=True)
-
+                sys.stderr.write(
+                    '\nBest observed values satisfying constraints is %f, at location:\n' % best_observed_value)
+                self.task_group.paramify_and_print(best_observed_location.flatten(), left_indent=16,
+                                                   indent_top_row=True)
 
         # Return according to model, not observed
         return current_best_value, current_best_location
@@ -514,10 +521,10 @@ class DefaultChooser(object):
 
     # Returns a boolean array of size pred.shape[0] indicating whether the prob con-constraint is satisfied there
     def probabilistic_constraint(self, pred):
-        return reduce(np.logical_and, 
-            [self.confidence(c, pred) >= self.task_group.tasks[c].options.get('min-confidence', 0.99)
-                for c in self.constraints], 
-                np.ones(pred.shape[0], dtype=bool))
+        return reduce(np.logical_and,
+                      [self.confidence(c, pred) >= self.task_group.tasks[c].options.get('min-confidence', 0.99)
+                       for c in self.constraints],
+                      np.ones(pred.shape[0], dtype=bool))
 
     def acquisition_function_over_hypers(self, *args, **kwargs):
         return function_over_hypers(self.models.values(), self.acquisition_function, *args, **kwargs)
@@ -544,7 +551,7 @@ class DefaultChooser(object):
             ei_grad = 0.
         else:
             target = current_best
-     
+
             # Compute the predictive mean and variance
             if not compute_grad:
                 ei = compute_ei(obj_model, cand, target, compute_grad=compute_grad)
@@ -565,20 +572,20 @@ class DefaultChooser(object):
                 p_grad.append(pvg)
             else:
                 p_valid.append(self.models[c].pi(cand, compute_grad=False))
-        
+
         p_valid_prod = reduce(np.multiply, p_valid, np.ones(N_cand))
 
         # To compute the gradient, need to do the chain rule for the product of N factors
         if compute_grad:
             p_grad_prod = np.zeros(p_grad[0].shape)
-            for i in xrange(self.numConstraints()):
+            for i in range(self.numConstraints()):
                 pg = p_grad[i]
-                for j in xrange(self.numConstraints()):
+                for j in range(self.numConstraints()):
                     if j == i:
                         continue
                     pg *= p_valid[j]
                 p_grad_prod += pg
-            # multiply that gradient by all other pv's (this might be numerically disasterous if pv=0...)
+                # multiply that gradient by all other pv's (this might be numerically disasterous if pv=0...)
 
         ############## ---------------------------------------- ############
         ##############                                          ############
@@ -598,12 +605,12 @@ class DefaultChooser(object):
         ret = self.acquisition_function_over_hypers(cand, current_best, compute_grad=compute_grad)
 
         if isinstance(ret, tuple) or isinstance(ret, list):
-            return (-ret[0],-ret[1].flatten())
+            return (-ret[0], -ret[1].flatten())
         else:
             return -ret
 
     def optimize_pt(self, initializer, bounds, current_best, compute_grad=True):
         opt_x, opt_y, opt_info = spo.fmin_l_bfgs_b(self.acq_optimize_wrapper,
-                initializer.flatten(), args=(current_best,compute_grad),
-                bounds=bounds, disp=0, approx_grad=(not compute_grad))
+                                                   initializer.flatten(), args=(current_best, compute_grad),
+                                                   bounds=bounds, disp=0, approx_grad=(not compute_grad))
         return opt_x

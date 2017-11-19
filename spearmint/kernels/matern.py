@@ -184,11 +184,11 @@
 
 
 import numpy as np
-import kernel_utils
 
+from . import kernel_utils
 from .abstract_kernel import AbstractKernel
-from ..utils          import priors
-from ..utils.param    import Param as Hyperparameter
+from ..utils import priors
+from ..utils.param import Param as Hyperparameter
 
 SQRT_3 = np.sqrt(3.0)
 SQRT_5 = np.sqrt(5.0)
@@ -196,13 +196,13 @@ SQRT_5 = np.sqrt(5.0)
 
 class Matern52(AbstractKernel):
     def __init__(self, num_dims, length_scale=None, name='Matern52'):
-        self.name     = name
+        self.name = name
         self.num_dims = num_dims
 
         default_ls = Hyperparameter(
-            initial_value = np.ones(self.num_dims),
-            prior         = priors.Tophat(0,10),
-            name          = 'ls'
+            initial_value=np.ones(self.num_dims),
+            prior=priors.Tophat(0, 10),
+            name='ls'
         )
 
         self.ls = length_scale if length_scale is not None else default_ls
@@ -220,18 +220,17 @@ class Matern52(AbstractKernel):
         return np.ones(inputs.shape[0])
 
     def cross_cov(self, inputs_1, inputs_2):
-        r2  = np.abs(kernel_utils.dist2(self.ls.value, inputs_1, inputs_2))
-        r   = np.sqrt(r2)
-        cov = (1.0 + SQRT_5*r + (5.0/3.0)*r2) * np.exp(-SQRT_5*r)
+        r2 = np.abs(kernel_utils.dist2(self.ls.value, inputs_1, inputs_2))
+        r = np.sqrt(r2)
+        cov = (1.0 + SQRT_5 * r + (5.0 / 3.0) * r2) * np.exp(-SQRT_5 * r)
 
         return cov
 
     def cross_cov_grad_data(self, inputs_1, inputs_2):
         # NOTE: This is the gradient wrt the inputs of inputs_2
         # The gradient wrt the inputs of inputs_1 is -1 times this
-        r2      = np.abs(kernel_utils.dist2(self.ls.value, inputs_1, inputs_2))
-        r       = np.sqrt(r2)
-        grad_r2 = (5.0/6.0)*np.exp(-SQRT_5*r)*(1 + SQRT_5*r)
+        r2 = np.abs(kernel_utils.dist2(self.ls.value, inputs_1, inputs_2))
+        r = np.sqrt(r2)
+        grad_r2 = (5.0 / 6.0) * np.exp(-SQRT_5 * r) * (1 + SQRT_5 * r)
 
-        return grad_r2[:,:,np.newaxis] * kernel_utils.grad_dist2(self.ls.value, inputs_1, inputs_2)
-
+        return grad_r2[:, :, np.newaxis] * kernel_utils.grad_dist2(self.ls.value, inputs_1, inputs_2)

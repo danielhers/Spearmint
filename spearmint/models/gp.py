@@ -182,29 +182,31 @@
 # to enter into this License and Terms of Use on behalf of itself and
 # its Institution.
 
-import sys
 import logging
+import sys
+
 import numpy        as np
 import numpy.random as npr
 import scipy.linalg as spla
 import scipy.stats  as sps
 
-from .abstract_model          import AbstractModel
-from ..utils.param            import Param as Hyperparameter
-from ..kernels                import Matern52, Noise, Scale, SumKernel, TransformKernel
+from .abstract_model import AbstractModel
+from ..kernels import Matern52, Noise, Scale, SumKernel, TransformKernel
 from ..sampling.slice_sampler import SliceSampler
-from ..utils                  import priors
-from ..transformations        import BetaWarp, Transformer
+from ..transformations import BetaWarp, Transformer
+from ..utils import priors
+from ..utils.param import Param as Hyperparameter
 
 try:
     module = sys.modules['__main__'].__file__
-    log    = logging.getLogger(module)
+    log = logging.getLogger(module)
 except:
-    log    = logging.getLogger()
-    print 'Not running from main.'
+    log = logging.getLogger()
+    print('Not running from main.')
 
 DEFAULT_MCMC_ITERS = 10
-DEFAULT_BURNIN     = 100
+DEFAULT_BURNIN = 100
+
 
 class GP(AbstractModel):
     """Gaussian process model
@@ -223,21 +225,22 @@ class GP(AbstractModel):
     thinning : int, optional
     num_fantasies : int, optional
     """
+
     def __init__(self, num_dims, **options):
         self.num_dims = num_dims
 
         self._set_likelihood(options)
 
         log.debug('GP received initialization options: %s' % (options))
-        self.verbose          = bool(options.get("verbose", False))
+        self.verbose = bool(options.get("verbose", False))
         self.mcmc_diagnostics = bool(options.get("mcmc_diagnostics", False))
-        self.mcmc_iters       = int(options.get("mcmc_iters", DEFAULT_MCMC_ITERS))
-        self.burnin           = int(options.get("burnin", DEFAULT_BURNIN))
-        self.thinning         = int(options.get("thinning", 0))
+        self.mcmc_iters = int(options.get("mcmc_iters", DEFAULT_MCMC_ITERS))
+        self.burnin = int(options.get("burnin", DEFAULT_BURNIN))
+        self.thinning = int(options.get("thinning", 0))
 
-        self._inputs = None # Matrix of data inputs
-        self._values = None # Vector of data values
-        self.pending = None # Matrix of pending inputs
+        self._inputs = None  # Matrix of data inputs
+        self._values = None  # Vector of data values
+        self.pending = None  # Matrix of pending inputs
         # TODO: support meta-data
 
         self.params = None
@@ -245,23 +248,23 @@ class GP(AbstractModel):
         # Default to using the mean prediction for fantasies
         self.num_fantasies = options.get('num_fantasies', 1)  # TODO -- make in config
 
-        self._caching                    = bool(options.get("caching", True))
-        self._cache_list                 = [] # Cached computations for re-use.
-        self._hypers_list                = [] # Hyperparameter dicts for each state.
-        self._fantasy_values_list        = [] # Fantasy values generated from pending samples.
-        self.state                       = None
-        self._random_state               = npr.get_state()
-        self._samplers                   = []
+        self._caching = bool(options.get("caching", True))
+        self._cache_list = []  # Cached computations for re-use.
+        self._hypers_list = []  # Hyperparameter dicts for each state.
+        self._fantasy_values_list = []  # Fantasy values generated from pending samples.
+        self.state = None
+        self._random_state = npr.get_state()
+        self._samplers = []
         self._use_mean_if_single_fantasy = True
-        
-        self._kernel            = None
+
+        self._kernel = None
         self._kernel_with_noise = None
 
-        self.num_states   = 0
+        self.num_states = 0
         self.chain_length = 0
 
-        self.max_cache_mb    = 256 # TODO -- make in config
-        self.max_cache_bytes = self.max_cache_mb*1024*1024
+        self.max_cache_mb = 256  # TODO -- make in config
+        self.max_cache_bytes = self.max_cache_mb * 1024 * 1024
 
         self._build()
 
@@ -274,7 +277,7 @@ class GP(AbstractModel):
             self.noiseless = False
 
     def _set_params_from_dict(self, hypers_dict):
-        for name, hyper in self.params.iteritems():
+        for name, hyper in self.params.items():
             self.params[name].value = hypers_dict[name]
 
     def _reset_params(self):
@@ -283,49 +286,48 @@ class GP(AbstractModel):
 
     def _pull_from_cache_or_compute(self):
         if self.caching and len(self._cache_list) == self.num_states:
-            chol  = self._cache_list[self.state]['chol']
+            chol = self._cache_list[self.state]['chol']
             alpha = self._cache_list[self.state]['alpha']
         else:
-            chol  = spla.cholesky(self.kernel.cov(self.inputs), lower=True)
+            chol = spla.cholesky(self.kernel.cov(self.inputs), lower=True)
             alpha = spla.cho_solve((chol, True), self.values - self.mean.value)
 
         return chol, alpha
 
     def _prepare_cache(self):
         inputs_hash = hash(self.inputs.tostring())
-        for i in xrange(self.num_states):
+        for i in range(self.num_states):
             self.set_state(i)
-            chol  = spla.cholesky(self.kernel.cov(self.inputs), lower=True)
+            chol = spla.cholesky(self.kernel.cov(self.inputs), lower=True)
             alpha = spla.cho_solve((chol, True), self.values - self.mean.value)
             cache_dict = {
-                'chol'  : chol,
-                'alpha' : alpha
+                'chol': chol,
+                'alpha': alpha
             }
             self._cache_list.append(cache_dict)
 
     def _reset(self):
         """reset the GP
         """
-        self._cache_list          = []
+        self._cache_list = []
         self._fantasy_values_list = []
-        self._hypers_list         = []
-        
+        self._hypers_list = []
+
         self._reset_params()
         self.chain_length = 0
-            
 
     def _build(self):
         # Build the transformer
-        beta_warp   = BetaWarp(self.num_dims)
+        beta_warp = BetaWarp(self.num_dims)
         transformer = Transformer(self.num_dims)
         transformer.add_layer(beta_warp)
 
         # Build the component kernels
-        input_kernel           = Matern52(self.num_dims)
-        stability_noise_kernel = Noise(self.num_dims) # Even if noiseless we use some noise for stability
-        scaled_input_kernel    = Scale(input_kernel)
-        sum_kernel             = SumKernel(scaled_input_kernel, stability_noise_kernel)
-        noise_kernel           = Noise(self.num_dims)
+        input_kernel = Matern52(self.num_dims)
+        stability_noise_kernel = Noise(self.num_dims)  # Even if noiseless we use some noise for stability
+        scaled_input_kernel = Scale(input_kernel)
+        sum_kernel = SumKernel(scaled_input_kernel, stability_noise_kernel)
+        noise_kernel = Noise(self.num_dims)
 
         # The final kernel applies the transformation.
         self._kernel = TransformKernel(sum_kernel, transformer)
@@ -336,22 +338,22 @@ class GP(AbstractModel):
 
         # Build the mean function (just a constant mean for now)
         self.mean = Hyperparameter(
-            initial_value = 0.0,
-            prior         = priors.Gaussian(0.0,1.0),
-            name          = 'mean'
+            initial_value=0.0,
+            prior=priors.Gaussian(0.0, 1.0),
+            name='mean'
         )
 
         # Get the hyperparameters to sample
-        ls                      = input_kernel.hypers
-        amp2                    = scaled_input_kernel.hypers
+        ls = input_kernel.hypers
+        amp2 = scaled_input_kernel.hypers
         beta_alpha, beta_beta = beta_warp.hypers
 
         self.params = {
-            'mean'       : self.mean,
-            'amp2'       : amp2,
-            'ls'         : ls,
-            'beta_alpha' : beta_alpha,
-            'beta_beta'  : beta_beta
+            'mean': self.mean,
+            'amp2': amp2,
+            'ls': ls,
+            'beta_alpha': beta_alpha,
+            'beta_beta': beta_beta
         }
 
         # Build the samplers
@@ -359,13 +361,13 @@ class GP(AbstractModel):
             self._samplers.append(SliceSampler(self.mean, amp2, compwise=False, thinning=self.thinning))
         else:
             noise = noise_kernel.hypers
-            self.params.update({'noise' : noise})
+            self.params.update({'noise': noise})
             self._samplers.append(SliceSampler(self.mean, amp2, noise, compwise=False, thinning=self.thinning))
 
         self._samplers.append(SliceSampler(ls, beta_alpha, beta_beta, compwise=True, thinning=self.thinning))
 
     def _burn_samples(self, num_samples):
-        for i in xrange(num_samples):
+        for i in range(num_samples):
             for sampler in self._samplers:
                 sampler.sample(self)
 
@@ -373,7 +375,7 @@ class GP(AbstractModel):
 
     def _collect_samples(self, num_samples):
         hypers_list = []
-        for i in xrange(num_samples):
+        for i in range(num_samples):
             for sampler in self._samplers:
                 sampler.sample(self)
 
@@ -384,11 +386,11 @@ class GP(AbstractModel):
 
     def _collect_fantasies(self, pending):
         fantasy_values_list = []
-        for i in xrange(self.num_states):
+        for i in range(self.num_states):
             self.set_state(i)
             fantasy_vals = self._fantasize(pending)
             if fantasy_vals.ndim == 1:
-                fantasy_vals = fantasy_vals[:,np.newaxis]
+                fantasy_vals = fantasy_vals[:, np.newaxis]
             fantasy_values_list.append(fantasy_vals)
 
         return fantasy_values_list
@@ -405,8 +407,8 @@ class GP(AbstractModel):
     def inputs(self):
         if self.pending is None or len(self._fantasy_values_list) < self.num_states:
             return self._inputs
-            
-        return np.vstack((self._inputs, self.pending)) # Could perhaps cache this to make it faster.
+
+        return np.vstack((self._inputs, self.pending))  # Could perhaps cache this to make it faster.
 
     @property
     def observed_inputs(self):
@@ -416,11 +418,12 @@ class GP(AbstractModel):
     def values(self):
         if self.pending is None or len(self._fantasy_values_list) < self.num_states:
             return self._values
-        
+
         if self.num_fantasies == 1:
             return np.append(self._values, self._fantasy_values_list[self.state].flatten(), axis=0)
         else:
-            return np.append(np.tile(self._values[:,None], (1,self.num_fantasies)), self._fantasy_values_list[self.state], axis=0)
+            return np.append(np.tile(self._values[:, None], (1, self.num_fantasies)),
+                             self._fantasy_values_list[self.state], axis=0)
 
     @property
     def observed_values(self):
@@ -447,10 +450,11 @@ class GP(AbstractModel):
             return False
 
         # For now this only computes the cost of storing the Cholesky decompositions.
-        cache_mem_usage = (self._inputs.shape[0]**2) * self.num_states * 8. # Each double is 8 bytes.
+        cache_mem_usage = (self._inputs.shape[0] ** 2) * self.num_states * 8.  # Each double is 8 bytes.
 
         if cache_mem_usage > self.max_cache_bytes:
-            sys.stderr.write('Max memory limit of %d bytes reached. Not caching intermediate computations.' % self.max_cache_bytes)
+            sys.stderr.write(
+                'Max memory limit of %d bytes reached. Not caching intermediate computations.' % self.max_cache_bytes)
 
             return False
 
@@ -462,8 +466,8 @@ class GP(AbstractModel):
 
     def to_dict(self):
         """return a dictionary that saves the values of the hypers and the chain length"""
-        gp_dict = {'hypers' : {}}
-        for name, hyper in self.params.iteritems():
+        gp_dict = {'hypers': {}}
+        for name, hyper in self.params.items():
             gp_dict['hypers'][name] = hyper.value
 
         gp_dict['chain length'] = self.chain_length
@@ -509,11 +513,11 @@ class GP(AbstractModel):
         elif not self._hypers_list:
             # Just use the current hypers as the only state
             self._hypers_list = [self.to_dict()['hypers']]
-            self.num_states  = 1
+            self.num_states = 1
 
         # Set pending data and generate corresponding fantasies
         if pending is not None:
-            self.pending              = pending
+            self.pending = pending
             self._fantasy_values_list = self._collect_fantasies(pending)
 
         # Get caching ready
@@ -521,7 +525,7 @@ class GP(AbstractModel):
             self._prepare_cache()
 
         # Set the hypers to the final state of the chain
-        self.set_state(len(self._hypers_list)-1)
+        self.set_state(len(self._hypers_list) - 1)
 
         return self.to_dict()
 
@@ -533,12 +537,12 @@ class GP(AbstractModel):
         -----
         This is called by the samplers when fitting the hyperparameters.
         """
-        cov   = self.kernel.cov(self.observed_inputs)
-        chol  = spla.cholesky(cov, lower=True)
+        cov = self.kernel.cov(self.observed_inputs)
+        chol = spla.cholesky(cov, lower=True)
         solve = spla.cho_solve((chol, True), self.observed_values - self.mean.value)
 
         # Uses the identity that log det A = log prod diag chol A = sum log diag chol A
-        return -np.sum(np.log(np.diag(chol)))-0.5*np.dot(self.observed_values - self.mean.value, solve)
+        return -np.sum(np.log(np.diag(chol))) - 0.5 * np.dot(self.observed_values - self.mean.value, solve)
 
     def predict(self, pred, full_cov=False, compute_grad=False):
         inputs = self.inputs
@@ -553,7 +557,7 @@ class GP(AbstractModel):
 
         # The primary covariances for prediction.
         cand_cross = self.noiseless_kernel.cross_cov(inputs, pred)
-        
+
         chol, alpha = self._pull_from_cache_or_compute()
 
         # Solve the linear systems.
@@ -570,25 +574,25 @@ class GP(AbstractModel):
             func_v = cand_cov - np.dot(beta.T, beta)
         else:
             cand_cov = self.noiseless_kernel.diag_cov(pred)
-            func_v = cand_cov - np.sum(beta**2, axis=0)
+            func_v = cand_cov - np.sum(beta ** 2, axis=0)
 
         if not compute_grad:
             return func_m, func_v
 
         grad_cross = self.noiseless_kernel.cross_cov_grad_data(inputs, pred)
-        grad_xp_m  = np.tensordot(np.transpose(grad_cross, (1,2,0)), alpha, 1)
+        grad_xp_m = np.tensordot(np.transpose(grad_cross, (1, 2, 0)), alpha, 1)
 
         # this should be faster than (and equivalent to) spla.cho_solve((chol, True),cand_cross))
         gamma = spla.solve_triangular(chol.T, beta, lower=False)
 
         # Using sum and multiplication and summing instead of matrix multiplication
         # because I only want the diagonals of the gradient of the covariance matrix, not the whole thing
-        grad_xp_v = -2.0*np.sum(gamma[:,:,np.newaxis] * grad_cross, axis=0)
+        grad_xp_v = -2.0 * np.sum(gamma[:, :, np.newaxis] * grad_cross, axis=0)
 
         # Not very important -- just to make sure grad_xp_v.shape = grad_xp_m.shape
         if values.ndim > 1:
-            grad_xp_v = grad_xp_v[:,:,np.newaxis]
-        
+            grad_xp_v = grad_xp_v[:, :, np.newaxis]
+
         # In case this is a function over a 1D input,
         # return a numpy array rather than a float
         if np.ndim(grad_xp_m) == 0:
@@ -610,7 +614,6 @@ class GP(AbstractModel):
             var = self.noiseless_kernel.diag_cov(pred)
             return mean, var
 
-
     # -------------------------------------------------------- #
     #                                                          #
     # Below are four sampling routines. Each one has the same  #
@@ -629,23 +632,23 @@ class GP(AbstractModel):
         N_pred = pred.shape[0]
         if joint:
             mean = self.mean.value
-            cov  = self.noiseless_kernel.cov(pred) # Gaussian likelihood happens here
-            return npr.multivariate_normal(mean*np.ones(N_pred), cov, size=n_samples).T.squeeze()
+            cov = self.noiseless_kernel.cov(pred)  # Gaussian likelihood happens here
+            return npr.multivariate_normal(mean * np.ones(N_pred), cov, size=n_samples).T.squeeze()
         else:
             mean = self.mean.value
-            var  = self.noiseless_kernel.diag_cov(pred)
-            return np.squeeze(mean + npr.randn(N_pred, n_samples) * np.sqrt(var)[:,None])
+            var = self.noiseless_kernel.diag_cov(pred)
+            return np.squeeze(mean + npr.randn(N_pred, n_samples) * np.sqrt(var)[:, None])
 
     # Sample from p(y)
     # This is achieved by first sampling theta from its hyperprior p(theta), and then
     # sampling y from p(y | theta)
     def sample_from_prior(self, pred, n_samples=1, joint=True):
         fants = np.zeros((pred.shape[0], n_samples))
-        for i in xrange(n_samples):
+        for i in range(n_samples):
             for param in self.params:
-                param.sample_from_prior() # sample from hyperpriors and set value
-            fants[:,i] = self.sample_from_prior_given_hypers(pred, joint)
-        return fants.squeeze() # squeeze in case n_samples=1
+                param.sample_from_prior()  # sample from hyperpriors and set value
+            fants[:, i] = self.sample_from_prior_given_hypers(pred, joint)
+        return fants.squeeze()  # squeeze in case n_samples=1
 
     # Terminology: does "posterior" usually refer to p(theta | data) ?
     # By "posterior" I guess I mean "posterior predictive", p(y | data)
@@ -653,23 +656,23 @@ class GP(AbstractModel):
     # Sample from p(y | theta, data), where theta is given by the current state
     def sample_from_posterior_given_hypers_and_data(self, pred, n_samples=1, joint=True):
         if joint:
-            predicted_mean, cov = self.predict(pred, full_cov=True) # This part depends on the data
+            predicted_mean, cov = self.predict(pred, full_cov=True)  # This part depends on the data
             return npr.multivariate_normal(predicted_mean, cov, size=n_samples).T.squeeze()
         else:
-            predicted_mean, var = self.predict(pred, full_cov=False) # This part depends on the data
-            return np.squeeze(predicted_mean[:,None] + npr.randn(pred.shape[0], n_samples) * np.sqrt(var)[:,None])
+            predicted_mean, var = self.predict(pred, full_cov=False)  # This part depends on the data
+            return np.squeeze(predicted_mean[:, None] + npr.randn(pred.shape[0], n_samples) * np.sqrt(var)[:, None])
 
     # Sample from p(y | data), integrating out the hyperparameters (theta)
     # This is achieved by first sampling theta from p(theta | data), and then
     # sampling y from p(y | theta, data)
     def sample_from_posterior_given_data(self, pred, n_samples=1, joint=True):
         fants = np.zeros((pred.shape[0], n_samples))
-        for i in xrange(n_samples):
+        for i in range(n_samples):
             # Sample theta from p(theta | data)
             self.generate_sample(1)
             # Sample y from p(y | theta, data)
-            fants[:,i] = self.sample_from_posterior_given_hypers_and_data(pred, joint)
-        return fants.squeeze() # squeeze in case n_samples=1
+            fants[:, i] = self.sample_from_posterior_given_hypers_and_data(pred, joint)
+        return fants.squeeze()  # squeeze in case n_samples=1
 
     # -------------------------------------------------------- #
     #                                                          #
@@ -685,22 +688,20 @@ class GP(AbstractModel):
             mean, sigma2 = self.predict(pred, compute_grad=False)
         else:
             mean, sigma2, g_m_x, g_v_x = self.predict(pred, compute_grad=True)
-        sigma  = np.sqrt(sigma2)
+        sigma = np.sqrt(sigma2)
 
-        C_minus_m = C-mean
+        C_minus_m = C - mean
 
         # norm.sf = 1 - norm.cdf
-        prob = sps.norm.sf(C_minus_m/sigma)
+        prob = sps.norm.sf(C_minus_m / sigma)
 
         if not compute_grad:
             return prob
         else:
             # Gradient of pi w.r.t. GP mean
-            g_p_m = sps.norm.pdf( C_minus_m / sigma ) / sigma
+            g_p_m = sps.norm.pdf(C_minus_m / sigma) / sigma
             # Gradient of pi w.r.t. GP variance (equals grad w.r.t. sigma / (2*sigma))
-            g_p_v = sps.norm.pdf( C_minus_m / sigma ) * C_minus_m / sigma2 / (2*sigma)
+            g_p_v = sps.norm.pdf(C_minus_m / sigma) * C_minus_m / sigma2 / (2 * sigma)
             # Total derivative of pi w.r.t. inputs
-            grad_p = g_p_m[:,np.newaxis] * g_m_x + g_p_v[:,np.newaxis] * g_v_x
+            grad_p = g_p_m[:, np.newaxis] * g_m_x + g_p_v[:, np.newaxis] * g_v_x
             return prob, grad_p
-
-

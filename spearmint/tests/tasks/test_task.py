@@ -182,45 +182,47 @@
 # to enter into this License and Terms of Use on behalf of itself and
 # its Institution.
 
+from collections import OrderedDict
+
 import numpy as np
 
-from collections          import OrderedDict
 from spearmint.tasks.task import Task
+
 
 def create_task():
     task_name = "mytask"
     task_type = "OBJECTIVE"
 
     variables_config = OrderedDict([('X',
-                                     {"type" : "INT",
-                                      "size" : 2,
-                                      "min"  : -1,
-                                      "max"  : 10}),
+                                     {"type": "INT",
+                                      "size": 2,
+                                      "min": -1,
+                                      "max": 10}),
                                     ('Y',
-                                     {"type" : "FLOAT",
-                                      "size" : 3,
-                                      "min"  : -0.003,
-                                      "max"  : 1e-1}),
+                                     {"type": "FLOAT",
+                                      "size": 3,
+                                      "min": -0.003,
+                                      "max": 1e-1}),
                                     ('Z',
-                                     {"type"    : "ENUM",
-                                      "size"    : 2,
-                                      "options" : ["one", "two", "three"]})])
+                                     {"type": "ENUM",
+                                      "size": 2,
+                                      "options": ["one", "two", "three"]})])
 
     variables_meta, num_dims, cardinality = Task.variables_config_to_meta(variables_config)
 
     # Create a set of inputs that satisfies the constraints of each variable
-    X = np.zeros((10,num_dims))
-    for i in xrange(10):
-        for name, variable in variables_meta.iteritems():
+    X = np.zeros((10, num_dims))
+    for i in range(10):
+        for name, variable in variables_meta.items():
             indices = variable['indices']
             if variable['type'] == 'int':
-                X[i,indices] = np.random.randint(variable['min'], variable['max']+1, len(indices))
+                X[i, indices] = np.random.randint(variable['min'], variable['max'] + 1, len(indices))
             elif variable['type'] == 'float':
-                X[i,indices] = np.random.rand(len(indices))*(variable['max']-variable['min']) + variable['min']
+                X[i, indices] = np.random.rand(len(indices)) * (variable['max'] - variable['min']) + variable['min']
             elif variable['type'] == 'enum':
                 for ind in indices:
                     cat = np.random.randint(len(ind))
-                    X[i,ind[cat]] = 1
+                    X[i, ind[cat]] = 1
 
     y = np.random.randn(10)
 
@@ -228,11 +230,16 @@ def create_task():
 
     return t
 
+
 def test_init():
     t = create_task()
-    assert t.variables_meta == OrderedDict([('X', {'indices': [0, 1], 'max': 10, 'type': 'int', 'min': -1}), ('Y', {'indices': [2, 3, 4], 'max': 0.1, 'type': 'float', 'min': -0.003}), ('Z', {'indices': [[5, 6, 7], [8, 9, 10]], 'type': 'enum', 'options': ['one', 'two', 'three']})])
+    assert t.variables_meta == OrderedDict([('X', {'indices': [0, 1], 'max': 10, 'type': 'int', 'min': -1}),
+                                            ('Y', {'indices': [2, 3, 4], 'max': 0.1, 'type': 'float', 'min': -0.003}), (
+                                            'Z', {'indices': [[5, 6, 7], [8, 9, 10]], 'type': 'enum',
+                                                  'options': ['one', 'two', 'three']})])
     assert t.cardinality == 7
     assert t.num_dims == 11
+
 
 def test_standardization():
     t = create_task()
@@ -248,6 +255,7 @@ def test_standardization():
     assert np.abs(ystandard.mean()) < 1e-15
     assert ystandard.std() > (1 - 1e-15) and ystandard.std() < (1 + 1e-15)
 
+
 def test_unit():
     t = create_task()
 
@@ -256,4 +264,3 @@ def test_unit():
 
     assert np.all(U <= 1) and np.all(U >= 0)
     assert np.linalg.norm(V - t.data) < 1e-10
-

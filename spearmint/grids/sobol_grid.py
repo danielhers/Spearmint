@@ -185,6 +185,6 @@
 
 from .sobol import sobol
 
-def generate(num_dims, grid_size=20000, grid_seed=0):
-    return sobol(grid_size+grid_seed, num_dims)[grid_seed:]
 
+def generate(num_dims, grid_size=20000, grid_seed=0):
+    return sobol(grid_size + grid_seed, num_dims)[grid_seed:]

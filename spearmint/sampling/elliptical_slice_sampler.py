@@ -183,8 +183,8 @@
 # its Institution.
 
 
-import sys
 import math
+import sys
 
 import numpy        as np
 import numpy.random as npr
@@ -195,22 +195,21 @@ from ..utils import param as hyperparameter_utils
 
 
 class EllipticalSliceSampler(AbstractSampler):
-
     # No prior explicitly done here, that is included in the sampling
     def logprob(self, x, model):
         hyperparameter_utils.set_params_from_array(self.params, x)
-        return model.log_binomial_likelihood() # no contribution from priors-- Gaussian prior built in to sampler
+        return model.log_binomial_likelihood()  # no contribution from priors-- Gaussian prior built in to sampler
 
     def sample(self, model):
         if not model.has_data:
-            return np.zeros(0) # TODO this should be a sample from the prior...
+            return np.zeros(0)  # TODO this should be a sample from the prior...
 
-        prior_cov      = model.noiseless_kernel.cov(model.inputs)
+        prior_cov = model.noiseless_kernel.cov(model.inputs)
         prior_cov_chol = spla.cholesky(prior_cov, lower=True)
         # Here get the Cholesky from model
 
         params_array = hyperparameter_utils.params_to_array(self.params)
-        for i in xrange(self.thinning + 1):
+        for i in range(self.thinning + 1):
             params_array, current_ll = elliptical_slice(
                 params_array,
                 self.logprob,
@@ -220,7 +219,7 @@ class EllipticalSliceSampler(AbstractSampler):
                 **self.sampler_options
             )
             hyperparameter_utils.set_params_from_array(self.params, params_array)
-        self.current_ll = current_ll # for diagnostics
+        self.current_ll = current_ll  # for diagnostics
 
 
 # xx: the initial point
@@ -240,31 +239,32 @@ def elliptical_slice(xx, log_like_fn, prior_chol, prior_mean, *log_like_args, **
     if np.isnan(cur_log_like):
         raise Exception("Elliptical Slice Sampler: initial logprob is NaN for inputs %s" % xx)
 
-    nu = np.dot(prior_chol, npr.randn(xx.shape[0])) # don't bother adding mean here, would just subtract it at update step
-    hh = np.log(npr.rand()) + cur_log_like  
+    nu = np.dot(prior_chol,
+                npr.randn(xx.shape[0]))  # don't bother adding mean here, would just subtract it at update step
+    hh = np.log(npr.rand()) + cur_log_like
     # log likelihood threshold -- LESS THAN THE INITIAL LOG LIKELIHOOD
 
     # Set up a bracket of angles and pick a first proposal.
     # "phi = (theta'-theta)" is a change in angle.
     if angle_range <= 0:
         # Bracket whole ellipse with both edges at first proposed point
-        phi = npr.rand()*2*math.pi
-        phi_min = phi - 2*math.pi
+        phi = npr.rand() * 2 * math.pi
+        phi_min = phi - 2 * math.pi
         phi_max = phi
     else:
         # Randomly center bracket on current point
-        phi_min = -angle_range*npr.rand();
+        phi_min = -angle_range * npr.rand();
         phi_max = phi_min + angle_range;
-        phi = npr.rand()*(phi_max - phi_min) + phi_min;
+        phi = npr.rand() * (phi_max - phi_min) + phi_min;
 
     # Slice sampling loop
     while True:
         # Compute xx for proposed angle difference 
         # and check if it's on the slice
-        xx_prop = (xx-prior_mean)*np.cos(phi) + nu*np.sin(phi) + prior_mean
+        xx_prop = (xx - prior_mean) * np.cos(phi) + nu * np.sin(phi) + prior_mean
 
         cur_log_like = log_like_fn(xx_prop, *log_like_args)
-        
+
         if cur_log_like > hh:
             # New point is on slice, ** EXIT LOOP **
             return xx_prop, cur_log_like
@@ -283,8 +283,7 @@ def elliptical_slice(xx, log_like_fn, prior_chol, prior_mean, *log_like_args, **
                             'and still not acceptable.');
 
         # Propose new angle difference
-        phi = npr.rand()*(phi_max - phi_min) + phi_min
-
+        phi = npr.rand() * (phi_max - phi_min) + phi_min
 
 
 if __name__ == '__main__':
@@ -292,55 +291,55 @@ if __name__ == '__main__':
     from utils import priors
     import time
 
-    print '2D Gaussian:'
+    print('2D Gaussian:')
 
     n = 1000000
 
     # Test on 2D Gaussian times another 2D Gaussian
     # one will be the "prior" and the other the "posterior"
-    x_samples = np.zeros((2,n))
+    x_samples = np.zeros((2, n))
     x = np.zeros(2)
 
     prior_mu = np.array([-5, 2])
-    prior_L = npr.randn(2,2)
-    prior_L[0,1] = 0.0 # lower chol
-    prior_cov = np.dot(prior_L,prior_L.T)
-    
+    prior_L = npr.randn(2, 2)
+    prior_L[0, 1] = 0.0  # lower chol
+    prior_cov = np.dot(prior_L, prior_L.T)
+
     like_mu = np.array([2, -1])
-    like_L = npr.randn(2,2)
-    like_L[0,1] = 0.0 # lower chol
+    like_L = npr.randn(2, 2)
+    like_L[0, 1] = 0.0  # lower chol
     like_cov = np.dot(like_L, like_L.T)
     like = priors.MultivariateNormal(mu=like_mu, cov=like_cov)
 
-    print 'Prior cov:'
-    print prior_cov
-    print 'Like cov:'
-    print like_cov
+    print('Prior cov:')
+    print(prior_cov)
+    print('Like cov:')
+    print(like_cov)
 
     current_time = time.time()
     cur_ll = None
-    for i in xrange(n):
+    for i in range(n):
         if i % 1000 == 0:
-            print 'Elliptical Slice Sample %d/%d' % (i,n)
+            print('Elliptical Slice Sample %d/%d' % (i, n))
         x, cur_ll = elliptical_slice(x, like.logprob, prior_L, prior_mu, cur_log_like=cur_ll)
-        x_samples[:,i] = x.copy()
+        x_samples[:, i] = x.copy()
 
-    print 'Elliptical slice sampling took %f seconds' % (time.time() - current_time)
+    print('Elliptical slice sampling took %f seconds' % (time.time() - current_time))
 
     # Formula for the actual mean and covariance matrix below came from
     # the wikipedia page on conjugate priors
     actual_cov = spla.inv(spla.inv(prior_cov) + spla.inv(like_cov))
     A = spla.cho_solve((prior_L, True), prior_mu)
     B = spla.cho_solve((like_L, True), like_mu)
-    actual_mean = np.dot(actual_cov, A+B)
+    actual_mean = np.dot(actual_cov, A + B)
 
-    print 'Actual mean:           %s' % actual_mean
-    print 'Mean of ESS samples:   %s' % np.mean(x_samples,axis=1)
+    print('Actual mean:           %s' % actual_mean)
+    print('Mean of ESS samples:   %s' % np.mean(x_samples, axis=1))
 
-    print 'Actual Cov:'
-    print actual_cov
-    print 'Cov of ESS samples:'
-    print np.cov(x_samples)
+    print('Actual Cov:')
+    print(actual_cov)
+    print('Cov of ESS samples:')
+    print(np.cov(x_samples))
 
     # below: also compare with regular slice sampling (slower)
 
@@ -353,25 +352,23 @@ if __name__ == '__main__':
     # xx = np.zeros(2)
 
     # current_time = time.time()
-    # for i in xrange(n):
+    # for i in range(n):
     #     if i % 1000 == 0:
-    #         print 'Slice Sample %d/%d' % (i,n)
+    #         print('Slice Sample %d/%d' % (i,n))
     #     xx, cur_ll = slice_sample(xx, post.logprob)
     #     xx_samples[:,i] = xx.copy()
 
-    # print 'Slice sampling took %f seconds' % (time.time() - current_time)
-    # print ''
+    # print('Slice sampling took %f seconds' % (time.time() - current_time))
+    # print('')
 
 
-    # print 'Actual mean:           %s' % actual_mean
-    # print 'Mean of ESS samples:   %s' % np.mean(x_samples,axis=1)
-    # print 'Mean of slice samples: %s' % np.mean(xx_samples,axis=1)
+    # print('Actual mean:           %s' % actual_mean)
+    # print('Mean of ESS samples:   %s' % np.mean(x_samples,axis=1))
+    # print('Mean of slice samples: %s' % np.mean(xx_samples,axis=1))
 
-    # print 'Actual Cov:'
-    # print actual_cov
-    # print 'Cov of ESS samples:'
-    # print np.cov(x_samples)
-    # print 'Cov of slice samples:'
-    # print np.cov(xx_samples)
-
-
+    # print('Actual Cov:')
+    # print(actual_cov)
+    # print('Cov of ESS samples:')
+    # print(np.cov(x_samples))
+    # print('Cov of slice samples:')
+    # print(np.cov(xx_samples))

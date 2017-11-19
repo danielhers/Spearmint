@@ -182,14 +182,14 @@
 # to enter into this License and Terms of Use on behalf of itself and
 # its Institution.
 
-import spearmint
 from cluster_scheduler import AbstractClusterScheduler
+
 
 def init(*args, **kwargs):
     return SLURMScheduler(*args, **kwargs)
 
-class SLURMScheduler(AbstractClusterScheduler):
 
+class SLURMScheduler(AbstractClusterScheduler):
     def submit_command(self, output_file, job_name):
         return 'sbatch -e %s -o %s -J %s' % (output_file, output_file, job_name)
 

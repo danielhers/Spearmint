@@ -182,42 +182,36 @@
 # to enter into this License and Terms of Use on behalf of itself and
 # its Institution.
 
-import warnings
-
 import numpy        as np
 import numpy.random as npr
 
 from spearmint.transformations import Linear
-from spearmint.utils           import priors
-from spearmint.utils.param     import Param as Hyperparameter
+
 
 def test_backward_pass():
     npr.seed(1)
 
     eps = 1e-5
-    N   = 10
-    D   = 5
+    N = 10
+    D = 5
 
     lin = Linear(D)
 
-    data = 0.5*npr.rand(N,D)
+    data = 0.5 * npr.rand(N, D)
     new_data = lin.forward_pass(data)
-    loss = np.sum(new_data**2)
-    V    = 2*new_data
+    loss = np.sum(new_data ** 2)
+    V = 2 * new_data
 
     dloss = lin.backward_pass(V)
-    
+
     dloss_est = np.zeros(dloss.shape)
-    for i in xrange(N):
-        for j in xrange(D):
-            data[i,j] += eps
-            loss_1 = np.sum(lin.forward_pass(data)**2)
-            data[i,j] -= 2*eps
-            loss_2 = np.sum(lin.forward_pass(data)**2)
-            data[i,j] += eps
-            dloss_est[i,j] = ((loss_1 - loss_2) / (2*eps))
+    for i in range(N):
+        for j in range(D):
+            data[i, j] += eps
+            loss_1 = np.sum(lin.forward_pass(data) ** 2)
+            data[i, j] -= 2 * eps
+            loss_2 = np.sum(lin.forward_pass(data) ** 2)
+            data[i, j] += eps
+            dloss_est[i, j] = ((loss_1 - loss_2) / (2 * eps))
 
     assert np.linalg.norm(dloss - dloss_est) < 1e-6
-
-
-

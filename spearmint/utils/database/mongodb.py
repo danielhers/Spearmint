@@ -182,20 +182,18 @@
 # to enter into this License and Terms of Use on behalf of itself and
 # its Institution.
 
-import sys
-import time
 import pymongo
-import numpy.random as npr
 
-from abstractdb                  import AbstractDB
 from spearmint.utils.compression import compress_nested_container, decompress_nested_container
+from spearmint.utils.database.abstractdb import AbstractDB
+
 
 class MongoDB(AbstractDB):
     def __init__(self, database_address='localhost', database_name='spearmint'):
         try:
             self.client = pymongo.MongoClient(database_address)
-            self.db     = self.client[database_name]
-            
+            self.db = self.client[database_name]
+
             # Get the ID of this connection for locking.
             self.myId = self.db.last_status()['connectionId']
         except:
@@ -215,7 +213,7 @@ class MongoDB(AbstractDB):
         save_doc = compress_nested_container(save_doc)
 
         dbcollection = self.db[experiment_name][experiment_field]
-        dbdocs       = list(dbcollection.find(field_filters))
+        dbdocs = list(dbcollection.find(field_filters))
 
         upsert = False
 
@@ -224,10 +222,10 @@ class MongoDB(AbstractDB):
         elif len(dbdocs) == 1:
             dbdoc = dbdocs[0]
         else:
-            #sys.stderr.write('Document not found, inserting new document.\n')
+            # sys.stderr.write('Document not found, inserting new document.\n')
             upsert = True
 
-        #TODO: change this to find_and_modify
+        # TODO: change this to find_and_modify
         result = dbcollection.update(field_filters, save_doc, upsert=upsert)
 
         if upsert:
@@ -242,7 +240,7 @@ class MongoDB(AbstractDB):
             field_filters = {}
 
         dbcollection = self.db[experiment_name][experiment_field]
-        dbdocs       = list(dbcollection.find(field_filters))
+        dbdocs = list(dbcollection.find(field_filters))
 
         if len(dbdocs) == 0:
             return None
@@ -253,4 +251,3 @@ class MongoDB(AbstractDB):
 
     def remove(self, experiment_name, experiment_field, field_filters={}):
         self.db[experiment_name][experiment_field].remove(field_filters)
-

@@ -183,12 +183,13 @@
 # its Institution.
 
 import warnings
+
 import numpy       as np
 import scipy.stats as sps
 
 from .abstract_transformation import AbstractTransformation
-from ..utils                  import priors
-from ..utils.param            import Param as Hyperparameter
+from ..utils import priors
+from ..utils.param import Param as Hyperparameter
 
 
 def truncate_inputs(func):
@@ -198,39 +199,42 @@ def truncate_inputs(func):
     Truncates the inputs to lie between 0 and 1 if it doesn't already.
     This is to prevent small rounding errors from making the beta cdf and pdf
     go crazy. If the inputs genuinely lives outside of [0,1] then we obviously
-    don't want to do this, so print out a warning just in case.
+    don't want to do this, so print(out a warning just in case.)
     """
+
     def inner(cls_instance, inputs, *args):
         inputs = inputs.copy()
         if np.any(inputs < 0):
-            warnings.warn('BetaWarp encountered negative values: %s' % inputs[inputs<0])
-            inputs[inputs<0] = 0.0
+            warnings.warn('BetaWarp encountered negative values: %s' % inputs[inputs < 0])
+            inputs[inputs < 0] = 0.0
         if np.any(inputs > 1):
-            warnings.warn('BetaWarp encountered values above 1: %s' % inputs[inputs>1])
-            inputs[inputs>1] = 1.0
+            warnings.warn('BetaWarp encountered values above 1: %s' % inputs[inputs > 1])
+            inputs[inputs > 1] = 1.0
 
         return func(cls_instance, inputs, *args)
+
     return inner
+
 
 class BetaWarp(AbstractTransformation):
     def __init__(self, num_dims, alpha=None, beta=None, name="BetaWarp"):
-        self.name     = name
+        self.name = name
         self.num_dims = num_dims
 
         default_alpha = Hyperparameter(
-            initial_value = np.ones(num_dims),
-            prior         = priors.LognormalTophat(1.5,0.1,10),
-            name          = 'alpha'
+            initial_value=np.ones(num_dims),
+            prior=priors.LognormalTophat(1.5, 0.1, 10),
+            name='alpha'
         )
 
         default_beta = Hyperparameter(
-            initial_value = np.ones(num_dims),
-            prior         = priors.LognormalTophat(1.5,0.1,10),
-            name          = 'beta'
+            initial_value=np.ones(num_dims),
+            prior=priors.LognormalTophat(1.5, 0.1, 10),
+            name='beta'
         )
 
-        self.alpha  = alpha if alpha is not None else default_alpha
-        self.beta   = beta if beta is not None else default_beta
+        self.alpha = alpha if alpha is not None else default_alpha
+        self.beta = beta if beta is not None else default_beta
 
         assert self.alpha.value.shape[0] == self.num_dims and self.beta.value.shape[0] == self.num_dims
 
@@ -248,10 +252,4 @@ class BetaWarp(AbstractTransformation):
         dx = sps.beta.pdf(self._inputs, self.alpha.value, self.beta.value)
         dx[np.logical_not(np.isfinite(dx))] = 1.0
 
-        return dx*V
-
-
-
-
-
-
+        return dx * V

@@ -184,8 +184,8 @@
 
 
 from .abstract_transformation import AbstractTransformation
-from .normalization           import Normalization
-from .linear                  import Linear
+from .linear import Linear
+from .normalization import Normalization
 
 
 class NormLin(AbstractTransformation):
@@ -195,6 +195,7 @@ class NormLin(AbstractTransformation):
     Currently just accepts most defaults for the two layers, but this
     could be changed in the future if more customization is needed.
     """
+
     def __init__(self, num_dims, num_factors=2, name="Norm Lin"):
         self.name = name
         self.num_dims = num_dims
@@ -219,6 +220,3 @@ class NormLin(AbstractTransformation):
         JV_norm = self._norm.backward_pass(JV_proj)
 
         return JV_norm
-
-
-
